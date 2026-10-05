@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_rustore_pay/api/flutter_rustore_pay_client.dart';
+import 'package:flutter_rustore_pay/model/purchase.dart';
 import 'package:flutter_rustore_pay/model/purchase_availability.dart';
 import 'package:flutter_rustore_pay/model/ru_store_exception.dart';
 
@@ -41,10 +42,25 @@ class Billing {
         appUserId: userId,
         appUserEmail: email,
       );
-      await Api.confirmPurchase(res.purchaseId, res.productId);
+      await Api.confirmPurchase(res.purchaseId, res.productId, sandbox: res.sandbox);
       return true;
     } on RuStorePurchaseCancelledException {
       return false;
+    }
+  }
+
+  /// Продление: передаёт серверу активные подписки (сервер проверит срок в RuStore).
+  static Future<void> restore() async {
+    if (!supported) return;
+    try {
+      final purchases = await RuStorePayClient.instance.purchaseInteractor.getPurchases();
+      for (final p in purchases.whereType<SubscriptionPurchase>()) {
+        if (p.productId == AppConfig.proMonthId || p.productId == AppConfig.proYearId) {
+          await Api.confirmPurchase(p.purchaseId, p.productId);
+        }
+      }
+    } catch (_) {
+      // нет RuStore или сети — не критично
     }
   }
 }

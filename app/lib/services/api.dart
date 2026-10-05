@@ -26,6 +26,6 @@ class Api {
     return d['answer'] as String;
   }
 
-  static Future<void> confirmPurchase(String purchaseId, String productId) =>
-      _post('/billing/rustore', {'purchase_id': purchaseId, 'product_id': productId});
+  static Future<void> confirmPurchase(String purchaseId, String productId, {bool sandbox = false}) =>
+      _post('/billing/rustore', {'purchase_id': purchaseId, 'product_id': productId, 'sandbox': sandbox});
 }

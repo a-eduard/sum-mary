@@ -48,25 +48,46 @@ def chat(body: ChatIn, user_id: str = Depends(current_user)):
 class PurchaseIn(BaseModel):
     purchase_id: str
     product_id: str
+    sandbox: bool = False
+
+
+PRODUCTS = {"sammari_pro_month": 31, "sammari_pro_year": 366}
 
 
 @app.post("/billing/rustore")
 def billing_rustore(body: PurchaseIn, user_id: str = Depends(current_user)):
-    """Включает Pro после покупки в RuStore.
-    TODO до публичного запуска: проверять покупку через RuStore Public API (getSubscription по purchase_id)
-    и продлевать/отключать по вебхукам RuStore. Сейчас доверяем приложению — подходит только для теста."""
+    """Включает/продлевает Pro после покупки в RuStore.
+    Если задан ключ RuStore API — срок берём из RuStore (проверенная покупка).
+    Без ключа (только для теста) — доверяем приложению и даём срок по продукту."""
     import json as _json
-    days = {"sammari_pro_month": 31, "sammari_pro_year": 366}.get(body.product_id)
-    if not days:
+    from datetime import datetime, timedelta, timezone
+
+    from . import rustore
+    if body.product_id not in PRODUCTS:
         raise HTTPException(400, "Неизвестная подписка")
+    if rustore.enabled():
+        try:
+            info = rustore.subscription(body.product_id, body.purchase_id, body.sandbox)
+        except Exception as e:
+            raise HTTPException(502, f"RuStore недоступен: {e}")
+        if not info["active"]:
+            raise HTTPException(402, "Подписка не оплачена или истекла")
+        expires, raw, verified = info["expires_at"], info["raw"], True
+    else:
+        expires = datetime.now(timezone.utc) + timedelta(days=PRODUCTS[body.product_id])
+        raw, verified = body.model_dump(), False
     with db.conn() as c:
+        owner = c.execute("select user_id from public.purchases where purchase_id=%s", (body.purchase_id,)).fetchone()
+        if owner and str(owner["user_id"]) != user_id:
+            raise HTTPException(409, "Покупка привязана к другому аккаунту")
         c.execute(
             "insert into public.purchases (user_id, product_id, purchase_id, status, expires_at, raw) "
-            "values (%s,%s,%s,'active', now() + make_interval(days => %s), %s) "
-            "on conflict (purchase_id) do update set status='active', expires_at=excluded.expires_at",
-            (user_id, body.product_id, body.purchase_id, days, _json.dumps(body.model_dump())),
+            "values (%s,%s,%s,'active',%s,%s) "
+            "on conflict (purchase_id) do update set status='active', expires_at=excluded.expires_at, raw=excluded.raw",
+            (user_id, body.product_id, body.purchase_id, expires,
+             _json.dumps({"verified": verified, "data": raw}, ensure_ascii=False, default=str)),
         )
-        c.execute("update public.profiles set plan='pro', plan_expires_at = now() + make_interval(days => %s) where id=%s",
-                  (days, user_id))
+        c.execute("update public.profiles set plan='pro', plan_expires_at=greatest(coalesce(plan_expires_at, now()), %s) "
+                  "where id=%s", (expires, user_id))
         c.commit()
-    return {"ok": True}
+    return {"ok": True, "expires_at": expires.isoformat(), "verified": verified}

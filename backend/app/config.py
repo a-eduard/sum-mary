@@ -26,3 +26,8 @@ DIARIZATION_THRESHOLD = float(_env("DIARIZATION_THRESHOLD", "0.6"))
 NUM_THREADS = int(_env("NUM_THREADS", str(os.cpu_count() or 4)))
 POLL_SECONDS = float(_env("POLL_SECONDS", "3"))
 AUDIO_BUCKET = _env("AUDIO_BUCKET", "audio")
+
+# RuStore Public API — проверка подписок
+PACKAGE_NAME = _env("PACKAGE_NAME", "ru.summary.app")
+RUSTORE_KEY_ID = _env("RUSTORE_KEY_ID")
+RUSTORE_PRIVATE_KEY = _env("RUSTORE_PRIVATE_KEY")

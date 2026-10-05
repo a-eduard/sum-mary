@@ -1,4 +1,4 @@
-package ru.summary.sammari
+package ru.summary.app
 
 import android.content.Intent
 import android.os.Build

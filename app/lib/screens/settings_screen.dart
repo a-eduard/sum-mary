@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../config.dart';
 import '../models.dart';
+import '../services/billing.dart';
 import '../services/repo.dart';
 import '../theme.dart';
 import 'paywall_screen.dart';
@@ -15,7 +16,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  late Future<Profile> _profile = Repo.profile();
+  late Future<Profile> _profile = Billing.restore().then((_) => Repo.profile());
 
   @override
   Widget build(BuildContext context) {

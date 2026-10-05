@@ -8,3 +8,4 @@ psycopg[binary]>=3.2
 fastapi
 uvicorn[standard]
 pyjwt
+cryptography
