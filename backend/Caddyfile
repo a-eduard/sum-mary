@@ -10,6 +10,6 @@ api.sum-mary.ru {
 }
 
 db.sum-mary.ru {
-	# Kong — шлюз self-hosted Supabase (контейнер supabase-kong в сети supabase_default)
-	reverse_proxy supabase-kong:8000
+	# шлюз self-hosted Supabase (контейнер supabase-envoy в сети supabase_default)
+	reverse_proxy supabase-envoy:8000
 }
