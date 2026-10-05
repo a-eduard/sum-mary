@@ -1,0 +1,15 @@
+# HTTPS-сертификаты Let's Encrypt выпускаются автоматически.
+sum-mary.ru, www.sum-mary.ru {
+	root * /srv/landing
+	try_files {path} {path}.html {path}/index.html
+	file_server
+}
+
+api.sum-mary.ru {
+	reverse_proxy api:8000
+}
+
+db.sum-mary.ru {
+	# Kong — шлюз self-hosted Supabase (контейнер supabase-kong в сети supabase_default)
+	reverse_proxy supabase-kong:8000
+}

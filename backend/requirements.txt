@@ -1,0 +1,13 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+torchaudio
+gigaam @ git+https://github.com/salute-developers/GigaAM
+silero-vad
+sherpa-onnx
+soundfile
+numpy
+requests
+psycopg[binary]>=3.2
+fastapi
+uvicorn[standard]
+pyjwt

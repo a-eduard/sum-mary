@@ -1,0 +1,64 @@
+"""Worker: берёт записи из очереди и обрабатывает. Запуск: python -m app.worker"""
+import logging
+import os
+import tempfile
+import time
+import traceback
+
+from . import config, db, pipeline, storage
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+log = logging.getLogger("worker")
+
+
+def quota_ok(profile, duration_sec: int) -> bool:
+    from datetime import datetime, timezone
+    if profile["plan"] == "pro" and (profile["plan_expires_at"] is None
+                                     or profile["plan_expires_at"] > datetime.now(timezone.utc)):
+        return True
+    return profile["seconds_used"] + duration_sec <= profile["minutes_limit"] * 60
+
+
+def handle(rec):
+    rid = rec["id"]
+    log.info("job %s (%s)", rid, rec["audio_path"])
+    with tempfile.TemporaryDirectory() as td:
+        src = os.path.join(td, "src")
+        storage.download(rec["audio_path"], src)
+        from .audio import duration_sec
+        dur = duration_sec(src)
+        profile = db.get_profile(rec["user_id"])
+        if not quota_ok(profile, dur):
+            storage.delete(rec["audio_path"])
+            db.set_status(rid, "limit_exceeded", "Закончились бесплатные минуты")
+            return
+        out = pipeline.process_file(src, db.get_vocabulary(rec["user_id"]), profile["llm_provider"],
+                                    on_stage=lambda s: db.set_stage(rid, s))
+    db.save_results(rec, out["duration_sec"], out["segments"], out["result"], out["model"])
+    try:
+        storage.delete(rec["audio_path"])
+    except Exception:
+        log.warning("не удалось удалить аудио %s", rec["audio_path"])
+    log.info("job %s ready", rid)
+
+
+def main():
+    db.requeue_stale()
+    log.info("worker started, threads=%s", config.NUM_THREADS)
+    while True:
+        rec = None
+        try:
+            rec = db.claim_job()
+            if not rec:
+                time.sleep(config.POLL_SECONDS)
+                continue
+            handle(rec)
+        except Exception as e:
+            log.error("job failed: %s", traceback.format_exc())
+            if rec:
+                db.set_status(rec["id"], "error", str(e)[:500])
+            time.sleep(1)
+
+
+if __name__ == "__main__":
+    main()

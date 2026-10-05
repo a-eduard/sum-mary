@@ -1,0 +1,33 @@
+name: sammari
+description: "СамМари — ИИ-ассистент Мари: запись встреч и звонков, расшифровка, резюме и задачи."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  supabase_flutter: ^2.8.0
+  record: ^6.0.0
+  audioplayers: ^6.1.0
+  path_provider: ^2.1.4
+  path: ^1.9.0
+  file_picker: ^8.1.2
+  share_plus: ^10.1.0
+  permission_handler: ^11.3.1
+  http: ^1.2.2
+  intl: any
+  url_launcher: ^6.3.0
+  flutter_rustore_pay: ^11.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
