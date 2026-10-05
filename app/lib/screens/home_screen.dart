@@ -21,31 +21,58 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _tab = 0;
+  final _recordingsKey = GlobalKey<_RecordingsPageState>();
+
+  Widget _item(int i, IconData icon, String label, {VoidCallback? onTap}) {
+    final sel = _tab == i && onTap == null;
+    final color = sel ? AppColors.accent : AppColors.muted;
+    return Expanded(
+      child: InkWell(
+        onTap: onTap ?? () => setState(() => _tab = i),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, color: color),
+            const SizedBox(height: 2),
+            Text(label, style: TextStyle(fontSize: 12, color: color)),
+          ]),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final pages = [const RecordingsPage(), const TasksScreen(), const SettingsScreen()];
+    final pages = [RecordingsPage(key: _recordingsKey), const TasksScreen(), const SettingsScreen()];
     return Scaffold(
-      body: SafeArea(child: pages[_tab]),
+      body: SafeArea(child: IndexedStack(index: _tab, children: pages)),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: SizedBox(
-        width: 72,
-        height: 72,
+        width: 68,
+        height: 68,
         child: FloatingActionButton(
           backgroundColor: AppColors.record,
           shape: const CircleBorder(),
           onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RecordScreen())),
-          child: const Icon(Icons.mic, size: 34, color: Colors.white),
+          child: const Icon(Icons.mic, size: 32, color: Colors.white),
         ),
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _tab,
-        onDestinationSelected: (i) => setState(() => _tab = i),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.graphic_eq), label: 'Записи'),
-          NavigationDestination(icon: Icon(Icons.check_circle_outline), label: 'Задачи'),
-          NavigationDestination(icon: Icon(Icons.settings_outlined), label: 'Настройки'),
-        ],
+      bottomNavigationBar: BottomAppBar(
+        color: AppColors.card,
+        shape: const CircularNotchedRectangle(),
+        notchMargin: 6,
+        padding: EdgeInsets.zero,
+        height: 64,
+        child: Row(children: [
+          _item(0, Icons.graphic_eq, 'Записи'),
+          _item(1, Icons.check_circle_outline, 'Задачи'),
+          const SizedBox(width: 76),
+          _item(-1, Icons.upload_file, 'Импорт', onTap: () {
+            setState(() => _tab = 0);
+            _recordingsKey.currentState?.importMenu();
+          }),
+          _item(2, Icons.settings_outlined, 'Настройки'),
+        ]),
       ),
     );
   }
@@ -87,7 +114,7 @@ class _RecordingsPageState extends State<RecordingsPage> {
     }
   }
 
-  void _importMenu() {
+  void importMenu() {
     showModalBottomSheet(
       context: context,
       builder: (_) => SafeArea(
@@ -124,7 +151,7 @@ class _RecordingsPageState extends State<RecordingsPage> {
         child: Row(children: [
           const Text('СамМари', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
           const Spacer(),
-          IconButton(onPressed: _importMenu, icon: const Icon(Icons.upload_file), tooltip: 'Импорт'),
+          IconButton(onPressed: importMenu, icon: const Icon(Icons.upload_file), tooltip: 'Импорт'),
         ]),
       ),
       Padding(
