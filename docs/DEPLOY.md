@@ -24,8 +24,8 @@ cp .env.example .env
 
 Письмо с 6-значным кодом: в `docker-compose.yml` в сервис `auth` → `environment` добавить:
 ```yaml
-GOTRUE_MAILER_TEMPLATES_MAGIC_LINK: https://sum-mary.ru/email/code.html
-GOTRUE_MAILER_TEMPLATES_CONFIRMATION: https://sum-mary.ru/email/code.html
+GOTRUE_MAILER_TEMPLATES_MAGIC_LINK: https://api.sum-mary.ru/email/code.html
+GOTRUE_MAILER_TEMPLATES_CONFIRMATION: https://api.sum-mary.ru/email/code.html
 GOTRUE_MAILER_SUBJECTS_MAGIC_LINK: "Код входа в СамМари"
 GOTRUE_MAILER_SUBJECTS_CONFIRMATION: "Код входа в СамМари"
 GOTRUE_MAILER_OTP_EXP: 600

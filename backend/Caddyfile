@@ -6,7 +6,14 @@ sum-mary.ru, www.sum-mary.ru {
 }
 
 api.sum-mary.ru {
-	reverse_proxy api:8000
+	# шаблоны писем для Supabase Auth (не зависят от DNS основного домена)
+	handle /email/* {
+		root * /srv/landing
+		file_server
+	}
+	handle {
+		reverse_proxy api:8000
+	}
 }
 
 db.sum-mary.ru {
