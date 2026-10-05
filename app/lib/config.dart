@@ -8,8 +8,10 @@ class AppConfig {
   static const apiUrl =
       String.fromEnvironment('API_URL', defaultValue: 'https://api.sum-mary.ru');
 
-  /// ID подписки в консоли RuStore
-  static const proProductId = 'sammari_pro_month';
+  /// ID подписок в консоли RuStore
+  static const proMonthId = 'sammari_pro_month';
+  static const proYearId = 'sammari_pro_year';
+  static const proHoursLimit = 50;
   static const privacyUrl = 'https://sum-mary.ru/privacy';
   static const termsUrl = 'https://sum-mary.ru/terms';
 }

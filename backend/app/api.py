@@ -56,14 +56,17 @@ def billing_rustore(body: PurchaseIn, user_id: str = Depends(current_user)):
     TODO до публичного запуска: проверять покупку через RuStore Public API (getSubscription по purchase_id)
     и продлевать/отключать по вебхукам RuStore. Сейчас доверяем приложению — подходит только для теста."""
     import json as _json
+    days = {"sammari_pro_month": 31, "sammari_pro_year": 366}.get(body.product_id)
+    if not days:
+        raise HTTPException(400, "Неизвестная подписка")
     with db.conn() as c:
         c.execute(
             "insert into public.purchases (user_id, product_id, purchase_id, status, expires_at, raw) "
-            "values (%s,%s,%s,'active', now() + interval '31 days', %s) "
+            "values (%s,%s,%s,'active', now() + make_interval(days => %s), %s) "
             "on conflict (purchase_id) do update set status='active', expires_at=excluded.expires_at",
-            (user_id, body.product_id, body.purchase_id, _json.dumps(body.model_dump())),
+            (user_id, body.product_id, body.purchase_id, days, _json.dumps(body.model_dump())),
         )
-        c.execute("update public.profiles set plan='pro', plan_expires_at = now() + interval '31 days' where id=%s",
-                  (user_id,))
+        c.execute("update public.profiles set plan='pro', plan_expires_at = now() + make_interval(days => %s) where id=%s",
+                  (days, user_id))
         c.commit()
     return {"ok": True}

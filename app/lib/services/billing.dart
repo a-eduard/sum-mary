@@ -21,22 +21,23 @@ class Billing {
     }
   }
 
-  /// Цена подписки для экрана оплаты, например «299 ₽».
-  static Future<String?> priceLabel() async {
-    if (!supported) return null;
+  /// Цены подписок для экрана оплаты: {productId: «490 ₽»}.
+  static Future<Map<String, String>> prices() async {
+    if (!supported) return {};
     try {
-      final products = await RuStorePayClient.instance.productInteractor.getProducts([AppConfig.proProductId]);
-      return products.isEmpty ? null : products.first.amountLabel;
+      final products = await RuStorePayClient.instance.productInteractor
+          .getProducts([AppConfig.proMonthId, AppConfig.proYearId]);
+      return {for (final p in products) p.productId: p.amountLabel};
     } catch (_) {
-      return null;
+      return {};
     }
   }
 
   /// Покупка. Возвращает true, если оплата прошла и сервер подтвердил подписку.
-  static Future<bool> buyPro({required String userId, String? email}) async {
+  static Future<bool> buyPro({required String productId, required String userId, String? email}) async {
     try {
       final res = await RuStorePayClient.instance.purchaseInteractor.purchase(
-        AppConfig.proProductId,
+        productId,
         appUserId: userId,
         appUserEmail: email,
       );

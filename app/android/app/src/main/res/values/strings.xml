@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- ID приложения из консоли RuStore (Приложение → ID) -->
-    <string name="CONSOLE_APPLICATION_ID">ВСТАВЬТЕ_ID_ИЗ_RUSTORE</string>
+    <string name="CONSOLE_APPLICATION_ID">2063765768</string>
     <string name="SDK_PAY_SCHEME">sammaripay</string>
 </resources>

@@ -33,23 +33,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(p.isPro ? 'Тариф Pro — без ограничений' : 'Бесплатный тариф',
+                Text(p.isPro ? 'Тариф Pro' : 'Бесплатный тариф',
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 12),
+                LinearProgressIndicator(
+                    value: (p.minutesUsed / p.effectiveLimit).clamp(0, 1).toDouble(),
+                    minHeight: 8, borderRadius: BorderRadius.circular(4)),
+                const SizedBox(height: 8),
+                Text('Использовано ${p.minutesUsed} из ${p.effectiveLimit} мин в этом месяце',
+                    style: const TextStyle(color: AppColors.muted)),
                 if (!p.isPro) ...[
-                  const SizedBox(height: 12),
-                  LinearProgressIndicator(
-                      value: (p.minutesUsed / p.minutesLimit).clamp(0, 1).toDouble(),
-                      minHeight: 8, borderRadius: BorderRadius.circular(4)),
-                  const SizedBox(height: 8),
-                  Text('Использовано ${p.minutesUsed} из ${p.minutesLimit} мин в этом месяце',
-                      style: const TextStyle(color: AppColors.muted)),
                   const SizedBox(height: 12),
                   FilledButton(
                     onPressed: () async {
                       await Navigator.push(context, MaterialPageRoute(builder: (_) => const PaywallScreen()));
                       setState(() => _profile = Repo.profile());
                     },
-                    child: const Text('Безлимит с Pro'),
+                    child: const Text('Перейти на Pro — 50 часов в месяц'),
                   ),
                 ],
               ]),

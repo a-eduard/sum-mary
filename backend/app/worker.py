@@ -11,12 +11,15 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 log = logging.getLogger("worker")
 
 
+PRO_MINUTES = 3000  # Pro: 50 часов в месяц
+
+
 def quota_ok(profile, duration_sec: int) -> bool:
     from datetime import datetime, timezone
-    if profile["plan"] == "pro" and (profile["plan_expires_at"] is None
-                                     or profile["plan_expires_at"] > datetime.now(timezone.utc)):
-        return True
-    return profile["seconds_used"] + duration_sec <= profile["minutes_limit"] * 60
+    pro = profile["plan"] == "pro" and (profile["plan_expires_at"] is None
+                                        or profile["plan_expires_at"] > datetime.now(timezone.utc))
+    limit = PRO_MINUTES if pro else profile["minutes_limit"]
+    return profile["seconds_used"] + duration_sec <= limit * 60
 
 
 def handle(rec):
@@ -30,7 +33,7 @@ def handle(rec):
         profile = db.get_profile(rec["user_id"])
         if not quota_ok(profile, dur):
             storage.delete(rec["audio_path"])
-            db.set_status(rid, "limit_exceeded", "Закончились бесплатные минуты")
+            db.set_status(rid, "limit_exceeded", "Закончились минуты в этом месяце")
             return
         out = pipeline.process_file(src, db.get_vocabulary(rec["user_id"]), profile["llm_provider"],
                                     on_stage=lambda s: db.set_stage(rid, s))

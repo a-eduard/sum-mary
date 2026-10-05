@@ -113,6 +113,8 @@ class Profile {
         secondsUsed = m['seconds_used'] ?? 0;
 
   bool get isPro => plan == 'pro' && (planExpiresAt == null || planExpiresAt!.isAfter(DateTime.now()));
+  /// Лимит в минутах с учётом тарифа (Pro — 50 часов в месяц).
+  int get effectiveLimit => isPro ? 3000 : minutesLimit;
   int get minutesUsed => (secondsUsed / 60).ceil();
 }
 
