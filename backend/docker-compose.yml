@@ -2,12 +2,14 @@
 services:
   worker:
     build: .
+    image: sammari-backend:latest
     env_file: .env
     restart: unless-stopped
     command: python -m app.worker
     networks: [default, supabase]
   api:
-    build: .
+    image: sammari-backend:latest   # тот же образ, что и worker (собирается один раз)
+    depends_on: [worker]
     env_file: .env
     restart: unless-stopped
     command: uvicorn app.api:app --host 0.0.0.0 --port 8000 --workers 2
