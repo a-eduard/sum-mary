@@ -1,6 +1,3 @@
---extra-index-url https://download.pytorch.org/whl/cpu
-torch
-torchaudio
 gigaam @ git+https://github.com/salute-developers/GigaAM
 silero-vad
 sherpa-onnx
