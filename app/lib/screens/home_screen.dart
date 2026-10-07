@@ -69,16 +69,26 @@ class GlassNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = context.sm;
-    Widget item(int i, IconData icon, String label) => Expanded(
-          child: Semantics(
-            selected: index == i,
-            child: IconButton(
-              tooltip: label,
-              onPressed: () => onTap(i),
-              icon: Icon(icon, size: 26, color: index == i ? s.text : s.muted),
-            ),
+    Widget item(int i, IconData icon, String label) {
+      final sel = index == i;
+      final c = sel ? s.text : s.muted;
+      return Expanded(
+        child: Semantics(
+          selected: sel,
+          button: true,
+          child: InkResponse(
+            onTap: () => onTap(i),
+            radius: 36,
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(icon, size: 24, color: sel ? s.accentText : c),
+              const SizedBox(height: 3),
+              Text(label, maxLines: 1, overflow: TextOverflow.clip,
+                  style: TextStyle(color: c, fontSize: 11, fontWeight: sel ? FontWeight.w800 : FontWeight.w600)),
+            ]),
           ),
-        );
+        ),
+      );
+    }
     return SafeArea(
       top: false,
       child: Padding(
@@ -100,7 +110,13 @@ class GlassNav extends StatelessWidget {
                   child: Row(children: [
                     item(0, Icons.home_rounded, 'Сегодня'),
                     item(1, Icons.folder_rounded, 'Записи'),
-                    const SizedBox(width: 80),
+                    SizedBox(
+                      width: 80,
+                      child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
+                        Text('Запись', style: TextStyle(color: s.muted, fontSize: 11, fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 10),
+                      ]),
+                    ),
                     item(2, Icons.task_alt_rounded, 'Задачи'),
                     item(3, Icons.person_rounded, 'Профиль'),
                   ]),
@@ -115,7 +131,7 @@ class GlassNav extends StatelessWidget {
                 child: GestureDetector(
                   onTap: onRecord,
                   onLongPress: onRecordLong,
-                  child: const MariOrb(size: 68, child: Icon(Icons.mic_rounded, size: 30, color: Color(0xFF0F1015))),
+                  child: const MariOrb(size: 62, child: Icon(Icons.mic_rounded, size: 28, color: Color(0xFF0F1015))),
                 ),
               ),
             ),
@@ -493,20 +509,130 @@ class RecordingsPageState extends State<RecordingsPage> {
     );
   }
 
+  final _scaffold = GlobalKey<ScaffoldState>();
+  List<Recording> _all = [];
+
+  String _filterName() => switch (_filter) {
+        'all' => 'Все записи',
+        'inbox' => 'Входящие',
+        'fav' => 'Избранное',
+        _ => folderById(_filter)?.name ?? 'Все записи',
+      };
+
+  Widget _drawer(Sm s) => Drawer(
+        backgroundColor: s.bg,
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.horizontal(right: Radius.circular(28))),
+        child: SafeArea(
+          child: ValueListenableBuilder<List<Folder>>(
+            valueListenable: Repo.folders,
+            builder: (context, folders, _) {
+              int count(bool Function(Recording) f) => _all.where(f).length;
+              Widget row(String k, String label, int n, {Widget? lead}) {
+                final sel = _filter == k;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                  child: Material(
+                    color: sel ? s.accent.withValues(alpha: context.isDark ? .22 : .12) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(16),
+                    child: ListTile(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      leading: lead,
+                      title: Text(label, style: TextStyle(color: s.text, fontWeight: sel ? FontWeight.w800 : FontWeight.w600)),
+                      trailing: Text('$n', style: TextStyle(color: s.muted, fontWeight: FontWeight.w600)),
+                      onTap: () {
+                        setState(() => _filter = k);
+                        Navigator.pop(context);
+                      },
+                      onLongPress: folders.any((f) => f.id == k) ? () => _folderMenu(folders.firstWhere((f) => f.id == k)) : null,
+                    ),
+                  ),
+                );
+              }
+
+              return ListView(padding: const EdgeInsets.only(top: 20, bottom: 120), children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+                  child: Text('Полки', style: display(22, color: s.text)),
+                ),
+                row('all', 'Все записи', _all.length, lead: Icon(Icons.all_inbox_rounded, color: s.muted)),
+                row('inbox', 'Входящие', count((r) => r.folderId == null), lead: Icon(Icons.inbox_rounded, color: s.muted)),
+                row('fav', 'Избранное', count((r) => r.favorite), lead: const Icon(Icons.favorite_rounded, color: AppColors.record)),
+                Padding(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8), child: Divider(color: s.border)),
+                for (final f in folders)
+                  row(f.id, f.name, count((r) => r.folderId == f.id),
+                      lead: Container(width: 14, height: 14, decoration: BoxDecoration(color: hexColor(f.color), shape: BoxShape.circle))),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  child: ListTile(
+                    leading: Icon(Icons.add_rounded, color: s.accentText),
+                    title: Text('Новая полка', style: TextStyle(color: s.accentText, fontWeight: FontWeight.w700)),
+                    onTap: () async {
+                      final name = await askFolderName(context);
+                      if (name != null) await Repo.addFolder(name, folderColors[folders.length % folderColors.length]);
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(28, 4, 28, 0),
+                  child: Text('Удержите полку, чтобы удалить её', style: TextStyle(color: s.muted, fontSize: 12)),
+                ),
+              ]);
+            },
+          ),
+        ),
+      );
+
+  Future<void> _folderMenu(Folder f) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Удалить полку «${f.name}»?'),
+        content: const Text('Записи с этой полки не удалятся — они переедут во «Входящие».'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Отмена')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Удалить')),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await Repo.deleteFolder(f.id);
+      if (_filter == f.id) setState(() => _filter = 'all');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = context.sm;
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+    final folder = folderById(_filter);
+    return Scaffold(
+      key: _scaffold,
+      backgroundColor: Colors.transparent,
+      drawer: _drawer(s),
+      drawerEdgeDragWidth: 32,
+      body: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Padding(
-        padding: const EdgeInsets.fromLTRB(20, 20, 12, 8),
+        padding: const EdgeInsets.fromLTRB(8, 16, 12, 8),
         child: Row(children: [
-          Text('Записи', style: display(24, color: s.text)),
-          const Spacer(),
+          IconButton(
+            tooltip: 'Полки',
+            onPressed: () => _scaffold.currentState?.openDrawer(),
+            icon: Icon(Icons.menu_rounded, color: s.text),
+          ),
+          if (folder != null) ...[
+            Container(width: 12, height: 12, decoration: BoxDecoration(color: hexColor(folder.color), shape: BoxShape.circle)),
+            const SizedBox(width: 8),
+          ],
+          Expanded(
+            child: GestureDetector(
+              onTap: () => _scaffold.currentState?.openDrawer(),
+              child: Text(_filterName(), maxLines: 1, overflow: TextOverflow.ellipsis, style: display(22, color: s.text)),
+            ),
+          ),
           IconButton(onPressed: _importMenu, icon: Icon(Icons.upload_file_rounded, color: s.text), tooltip: 'Импорт'),
         ]),
       ),
       Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 10),
         child: TextField(
           controller: _q,
           focusNode: _focus,
@@ -514,46 +640,6 @@ class RecordingsPageState extends State<RecordingsPage> {
           decoration: InputDecoration(
               hintText: 'Поиск по всем записям', prefixIcon: Icon(Icons.search_rounded, color: s.muted), isDense: true),
         ),
-      ),
-      ValueListenableBuilder<List<Folder>>(
-        valueListenable: Repo.folders,
-        builder: (context, folders, _) {
-          Widget chip(String k, String label, {Color? dot}) => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: ChoiceChip(
-                  avatar: dot == null ? null : CircleAvatar(radius: 5, backgroundColor: dot),
-                  label: Text(label),
-                  selected: _filter == k,
-                  showCheckmark: false,
-                  labelStyle: TextStyle(color: _filter == k ? s.onAccent : s.text, fontWeight: FontWeight.w600),
-                  onSelected: (_) => setState(() => _filter = k),
-                ),
-              );
-          return SizedBox(
-            height: 52,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              children: [
-                chip('all', 'Все'),
-                chip('inbox', 'Входящие'),
-                for (final f in folders) chip(f.id, f.name, dot: hexColor(f.color)),
-                chip('fav', 'Избранное'),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: ActionChip(
-                    avatar: Icon(Icons.add_rounded, size: 18, color: s.accentText),
-                    label: const Text('Полка'),
-                    onPressed: () async {
-                      final name = await askFolderName(context);
-                      if (name != null) await Repo.addFolder(name, folderColors[folders.length % folderColors.length]);
-                    },
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
       ),
       Expanded(
         child: StreamBuilder<List<Recording>>(
@@ -563,6 +649,7 @@ class RecordingsPageState extends State<RecordingsPage> {
               return Center(child: Text('Нет связи с сервером', style: TextStyle(color: s.muted)));
             }
             if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+            _all = snap.data!;
             var list = _found ?? snap.data!;
             list = switch (_filter) {
               'all' => list,
@@ -599,6 +686,7 @@ class RecordingsPageState extends State<RecordingsPage> {
           },
         ),
       ),
-    ]);
+    ]),
+    );
   }
 }
