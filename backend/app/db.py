@@ -118,9 +118,10 @@ def _write_summary(c, rec, result: dict, model: str):
         if not t.get("text"):
             continue
         c.execute(
-            "insert into public.tasks (user_id, recording_id, text, assignee, due_text, due_date, t_sec) "
-            "values (%s,%s,%s,%s,%s,%s,%s)",
-            (uid, rid, t["text"], t.get("assignee"), t.get("due"), _date(t.get("due_date")), t.get("t_sec")),
+            "insert into public.tasks (user_id, recording_id, text, assignee, due_text, due_date, t_sec, for_me) "
+            "values (%s,%s,%s,%s,%s,%s,%s,%s)",
+            (uid, rid, t["text"], t.get("assignee"), t.get("due"), _date(t.get("due_date")), t.get("t_sec"),
+             bool(t.get("for_me"))),
         )
     if not rec.get("folder_id") and result.get("folder"):
         f = c.execute("select id from public.folders where user_id=%s and lower(name)=lower(%s) limit 1",

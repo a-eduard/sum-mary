@@ -2,10 +2,11 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show ValueNotifier;
-import 'package:path/path.dart' as p;
+import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models.dart';
+import 'uploader.dart';
 
 SupabaseClient get sb => Supabase.instance.client;
 
@@ -54,12 +55,14 @@ class Repo {
   }
 
   static Future<String> createRecording(
-      {required String source, required String localPath, String mode = 'meeting', int? durationSec, List<Map<String, dynamic>> marks = const []}) async {
+      {required String source, required String localPath, String mode = 'meeting', String? folderId, int? durationSec,
+      List<Map<String, dynamic>> marks = const []}) async {
     final row = await sb
         .from('recordings')
         .insert({
           'source': source,
           'mode': mode,
+          'folder_id': folderId,
           'marks': marks,
           'tz_offset_min': DateTime.now().timeZoneOffset.inMinutes,
           'local_audio': localPath,
@@ -71,12 +74,13 @@ class Repo {
     return row['id'] as String;
   }
 
-  /// Загружает аудио во временное хранилище и ставит запись в очередь на обработку.
-  static Future<void> uploadAndQueue(String recordingId, File file) async {
-    final ext = p.extension(file.path).isEmpty ? '.m4a' : p.extension(file.path);
-    final path = '$uid/$recordingId$ext';
-    await sb.storage.from('audio').upload(path, file, fileOptions: const FileOptions(upsert: true));
-    await sb.from('recordings').update({'audio_path': path, 'status': 'queued'}).eq('id', recordingId);
+  /// Загружает аудио (кусками, с докачкой) и ставит запись в очередь на обработку.
+  static Future<void> uploadAndQueue(String recordingId, File file) => Uploader.start(recordingId, file.path);
+
+  /// Записи, которые не успели загрузиться (для докачки после запуска).
+  static Future<List<Recording>> pendingUploads() async {
+    final rows = await sb.from('recordings').select().eq('status', 'uploading').isFilter('deleted_at', null);
+    return rows.map(Recording.fromMap).toList();
   }
 
   static Future<void> updateLocalPath(String id, String path) =>
@@ -119,6 +123,15 @@ class Repo {
     return out;
   }
 
+  /// Убрать событие из «Ближайшего» (удаляется из итога записи).
+  static Future<void> dismissEvent(EventItem e) async {
+    final row = await sb.from('summaries').select('events').eq('recording_id', e.recordingId).maybeSingle();
+    if (row == null) return;
+    final events = List<Map<String, dynamic>>.from((row['events'] as List? ?? []).map((x) => Map<String, dynamic>.from(x)));
+    events.removeWhere((x) => '${x['title']}' == e.title && '${x['date']}'.startsWith(DateFormat('yyyy-MM-dd').format(e.date)));
+    await sb.from('summaries').update({'events': events}).eq('recording_id', e.recordingId);
+  }
+
   // ---------- задачи ----------
   static Stream<List<TaskItem>> tasks() => _live(() => sb
       .from('tasks')
@@ -149,8 +162,8 @@ class Repo {
     await loadFolders();
   }
 
-  static Future<void> addFolder(String name, String color) async {
-    await sb.from('folders').insert({'name': name, 'color': color, 'sort': folders.value.length});
+  static Future<void> addFolder(String name, String color, {String kind = 'other'}) async {
+    await sb.from('folders').insert({'name': name, 'color': color, 'kind': kind, 'sort': folders.value.length});
     await loadFolders();
   }
 

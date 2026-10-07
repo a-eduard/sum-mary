@@ -11,6 +11,7 @@ import '../services/local_files.dart';
 import '../services/recorder.dart';
 import '../services/repo.dart';
 import '../theme.dart';
+import '../widgets/folder_sheet.dart';
 import '../widgets/mari_orb.dart';
 import 'home_screen.dart' show showModeSheet;
 import 'recording_screen.dart';
@@ -18,7 +19,8 @@ import 'recording_screen.dart';
 /// Экран записи: шар Мари, таймер, метки «Фото доски», «Важно!», «Не понял».
 class RecordScreen extends StatefulWidget {
   final String mode;
-  const RecordScreen({super.key, this.mode = 'meeting'});
+  final String? folderId;
+  const RecordScreen({super.key, this.mode = 'meeting', this.folderId});
   @override
   State<RecordScreen> createState() => _RecordScreenState();
 }
@@ -89,7 +91,8 @@ class _RecordScreenState extends State<RecordScreen> {
     final (path, dur) = res;
     try {
       final id = await Repo.createRecording(
-          source: Platform.isWindows ? 'desktop' : 'mic', mode: _mode, localPath: path, durationSec: dur, marks: _marks);
+          source: Platform.isWindows ? 'desktop' : 'mic', mode: _mode, folderId: widget.folderId, localPath: path,
+          durationSec: dur, marks: _marks);
       Repo.uploadAndQueue(id, File(path)).catchError((_) {});
       if (!mounted) return;
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => RecordingScreen(recordingId: id)));
@@ -210,7 +213,7 @@ class _RecordScreenState extends State<RecordScreen> {
                 const SizedBox(height: 8),
                 ActionChip(
                   avatar: Icon(mode.icon, size: 18, color: mode.color),
-                  label: Text(mode.label),
+                  label: Text(folderById(widget.folderId) == null ? mode.label : '${mode.label} · ${folderById(widget.folderId)!.name}'),
                   onPressed: () => showModeSheet(context, onPick: (m) => setState(() => _mode = m)),
                 ),
                 const SizedBox(height: 6),

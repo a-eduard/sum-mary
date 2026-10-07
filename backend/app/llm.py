@@ -13,6 +13,7 @@ SUMMARY_PROMPT = """Ты — Мари, ИИ-ассистент приложен�
 {vocab}
 {marks}
 {folders}
+{user}
 Верни СТРОГО JSON без пояснений, такого вида:
 {{
   "title": "название записи, до 8 слов",
@@ -21,7 +22,7 @@ SUMMARY_PROMPT = """Ты — Мари, ИИ-ассистент приложен�
   "key_points": [{{"text": "главная мысль / определение / формула / пример", "kind": "definition|formula|example|important|mistake|note", "t": "мм:сс"}}],
   "sections": [{{"title": "название блока", "items": ["пункт", ...]}}],
   "decisions": ["ключевое решение", ...],
-  "tasks": [{{"text": "что сделать", "assignee": "кто или null", "due": "срок как сказали или null", "due_date": "ГГГГ-ММ-ДД или null", "t": "мм:сс"}}],
+  "tasks": [{{"text": "что сделать", "assignee": "кто или null", "due": "срок как сказали или null", "due_date": "ГГГГ-ММ-ДД или null", "for_me": true, "t": "мм:сс"}}],
   "events": [{{"title": "что за событие", "date": "ГГГГ-ММ-ДД", "time": "ЧЧ:ММ или null", "kind": "test|meeting|deadline|homework|other", "t": "мм:сс"}}],
   "explanations": [{{"t": "мм:сс", "topic": "что было непонятно", "answer": "объяснение простыми словами"}}],
   "responsibilities": [{{"person": "имя", "area": "за что отвечает"}}],
@@ -32,7 +33,7 @@ SUMMARY_PROMPT = """Ты — Мари, ИИ-ассистент приложен�
 - Только факты из расшифровки, ничего не выдумывай. Нет данных — пустой список или null.
 - "t" — таймкод из расшифровки, где это прозвучало (формат мм:сс или ч:мм:сс). Обязательно для key_points, tasks, events.
 - key_points: 3–12 самых важных пунктов. kind: definition — определение термина; formula — формула (пиши в одну строку обычными символами: ∫, √, ², ≤); example — разобранный пример; important — то, что подчеркнули как важное («будет на контрольной», «обратите внимание»); mistake — типичная ошибка; note — прочее.
-- tasks — только реальные договорённости, поручения, домашние задания.
+- tasks — только реальные договорённости, поручения, домашние задания. for_me = true, если задачу поручили пользователю приложения (обратились к нему по имени) или он сам пообещал её сделать; домашнее задание на уроке/лекции — тоже for_me = true; иначе false.
 - events — только конкретные даты событий (контрольная, экзамен, встреча, созвон, дедлайн, сдача ДЗ). Без даты — не включай.
 - explanations — только для моментов, отмеченных пользователем как «Не понял». Объясни простыми словами, опираясь на расшифровку; если используешь общие знания — это допустимо, но не противоречь сказанному.
 - term_fixes — только явные ошибки распознавания названий, брендов, IT-терминов и англоязычных слов. "from" должен дословно встречаться в тексте.
@@ -119,7 +120,8 @@ def parse_t(v) -> int | None:
 
 
 def summarize(transcript: str, vocabulary: list[str], provider: str = "deepseek", mode: str = "meeting",
-              marks: list[dict] | None = None, recorded_at=None, folders: list[str] | None = None) -> tuple[dict, str]:
+              marks: list[dict] | None = None, recorded_at=None, folders: list[str] | None = None,
+              user_names: list[str] | None = None) -> tuple[dict, str]:
     from datetime import datetime
     vocab = ""
     if vocabulary:
@@ -141,8 +143,13 @@ def summarize(transcript: str, vocabulary: list[str], provider: str = "deepseek"
     if folders:
         folders_text = ("Полки пользователя (предметы, проекты, клиенты): " + "; ".join(folders)
                         + ". В поле folder верни название той полки, к которой явно относится запись, иначе null.")
+    user_text = ""
+    names = [n for n in (user_names or []) if n and n.strip()]
+    if names:
+        user_text = (f"Пользователь приложения (тот, кто записывает): {names[0]}. К нему могут обращаться так: "
+                     + ", ".join(names) + ". Если в записи кто-то из спикеров явно он — подпиши в задачах его имя.")
     prompt = SUMMARY_PROMPT.format(mode_name=mode_name, mode_rules=mode_rules, vocab=vocab, marks=marks_text, folders=folders_text,
-                                   recorded=rec.strftime("%Y-%m-%d %H:%M"), weekday=WEEKDAYS[rec.weekday()])
+                                   user=user_text, recorded=rec.strftime("%Y-%m-%d %H:%M"), weekday=WEEKDAYS[rec.weekday()])
     msgs = [{"role": "system", "content": prompt},
             {"role": "user", "content": "Расшифровка:\n\n" + transcript}]
     text, model = _call(msgs, provider, json_mode=True, max_tokens=6000)

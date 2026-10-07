@@ -69,7 +69,8 @@ def resummarize(body: ResummarizeIn, user_id: str = Depends(current_user)):
         llm.format_transcript(data["segments"], rec.get("speaker_names") or {}), db.get_vocabulary(user_id),
         profile["llm_provider"], mode=body.mode, marks=rec.get("marks") or [],
         recorded_at=rec["recorded_at"].astimezone(tz).replace(tzinfo=None),
-        folders=[f["name"] for f in db.get_folders(user_id)])
+        folders=[f["name"] for f in db.get_folders(user_id)],
+        user_names=[n for n in [profile.get("display_name"), *(profile.get("name_aliases") or [])] if n])
     db.save_summary(rec, result, model, body.mode)
     return {"ok": True}
 

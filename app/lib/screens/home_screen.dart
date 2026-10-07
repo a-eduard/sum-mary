@@ -10,11 +10,13 @@ import '../modes.dart';
 import '../services/calendar.dart';
 import '../services/local_files.dart';
 import '../services/repo.dart';
+import '../services/uploader.dart';
 import '../theme.dart';
 import '../widgets/mari_orb.dart';
 import '../roles.dart';
 import '../widgets/folder_sheet.dart';
 import '../widgets/recording_tile.dart';
+import '../widgets/start_sheet.dart';
 import 'record_screen.dart';
 import 'recording_screen.dart';
 import 'settings_screen.dart';
@@ -28,10 +30,18 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _tab = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    Repo.pendingUploads().then(Uploader.resumePending).catchError((_) {});
+  }
   final _recordingsKey = GlobalKey<RecordingsPageState>();
 
-  void _record([String mode = 'meeting']) =>
-      Navigator.push(context, MaterialPageRoute(builder: (_) => RecordScreen(mode: mode)));
+  void _record([String mode = 'meeting', String? folderId]) =>
+      Navigator.push(context, MaterialPageRoute(builder: (_) => RecordScreen(mode: mode, folderId: folderId)));
+
+  void _askAndRecord(String mode) => showStartSheet(context, mode: mode, onStart: _record);
 
   void _openSearch() {
     setState(() => _tab = 1);
@@ -41,7 +51,12 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final pages = [
-      TodayPage(onRecord: _record, onAsk: _openSearch, onImportCall: () => importAudio(context, call: true)),
+      TodayPage(
+        onRecord: _askAndRecord,
+        onAsk: _openSearch,
+        onImportCall: () => showStartSheet(context,
+            mode: 'call', importCall: true, onStart: (m, f) => importAudio(context, call: true, mode: m, folderId: f)),
+      ),
       RecordingsPage(key: _recordingsKey),
       const TasksScreen(),
       const SettingsScreen(),
@@ -53,7 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
         index: _tab,
         onTap: (i) => setState(() => _tab = i),
         onRecord: () => _record(),
-        onRecordLong: () => showModeSheet(context, onPick: _record),
+        onRecordLong: () => _askAndRecord('meeting'),
       ),
     );
   }
@@ -171,7 +186,7 @@ void showModeSheet(BuildContext context, {required void Function(String) onPick}
 }
 
 /// Импорт аудиофайлов: записи звонков, диктофон, файлы из мессенджеров.
-Future<void> importAudio(BuildContext context, {bool call = false}) async {
+Future<void> importAudio(BuildContext context, {bool call = false, String? mode, String? folderId}) async {
   // Аудио и видео (записи Телемоста/Zoom в .mp4) — сервер сам вытащит звук.
   final res = await FilePicker.platform.pickFiles(type: FileType.custom, allowMultiple: true, allowedExtensions: const [
     'm4a', 'mp3', 'wav', 'ogg', 'oga', 'opus', 'aac', 'flac', 'amr', '3gp', 'wma', 'mp4', 'mov', 'webm', 'mkv',
@@ -180,7 +195,7 @@ Future<void> importAudio(BuildContext context, {bool call = false}) async {
   for (final f in res.files.where((f) => f.path != null)) {
     final copy = await LocalFiles.importCopy(f.path!);
     final id = await Repo.createRecording(
-        source: call ? 'call' : 'import', mode: call ? 'call' : 'meeting', localPath: copy.path);
+        source: call ? 'call' : 'import', mode: mode ?? (call ? 'call' : 'meeting'), folderId: folderId, localPath: copy.path);
     Repo.uploadAndQueue(id, File(copy.path)).catchError((_) {});
   }
   if (context.mounted) {
@@ -308,9 +323,17 @@ class _TodayPageState extends State<TodayPage> {
               if (events.isEmpty && tasks.isEmpty) return const SizedBox.shrink();
               return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                 section('Ближайшее'),
-                for (final e in events) _HeroEvent(event: e, onOpen: () => _open(e.recordingId)),
+                for (final e in events)
+                  _HeroEvent(
+                    event: e,
+                    onOpen: () => _open(e.recordingId),
+                    onDismiss: () async {
+                      await Repo.dismissEvent(e);
+                      _refresh();
+                    },
+                  ),
                 if (events.isEmpty && tasks.isNotEmpty) _HeroTask(task: tasks.first),
-                for (final t in (events.isEmpty ? tasks.skip(1) : tasks)) _TaskRow(task: t),
+                for (final t in (events.isEmpty ? tasks.skip(1) : tasks)) _TaskRow(task: t, onOpen: _open),
               ]);
             },
           ),
@@ -346,8 +369,8 @@ class _TodayPageState extends State<TodayPage> {
 
 class _HeroEvent extends StatelessWidget {
   final EventItem event;
-  final VoidCallback onOpen;
-  const _HeroEvent({required this.event, required this.onOpen});
+  final VoidCallback onOpen, onDismiss;
+  const _HeroEvent({required this.event, required this.onOpen, required this.onDismiss});
   @override
   Widget build(BuildContext context) {
     final s = context.sm;
@@ -367,7 +390,18 @@ class _HeroEvent extends StatelessWidget {
         gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [s.heroStart, s.card], stops: const [0, .75]),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('$label · ${fmtEventDate(event)}', style: TextStyle(color: s.heroText, fontSize: 13, fontWeight: FontWeight.w600)),
+        Row(children: [
+          Expanded(
+            child: Text('$label · ${fmtEventDate(event)}',
+                style: TextStyle(color: s.heroText, fontSize: 13, fontWeight: FontWeight.w600)),
+          ),
+          IconButton(
+            tooltip: 'Убрать',
+            visualDensity: VisualDensity.compact,
+            onPressed: onDismiss,
+            icon: Icon(Icons.close_rounded, color: s.muted, size: 20),
+          ),
+        ]),
         const SizedBox(height: 6),
         Text(event.title, style: TextStyle(color: s.text, fontSize: 17, fontWeight: FontWeight.w700, height: 1.3)),
         const SizedBox(height: 12),
@@ -428,28 +462,56 @@ class _HeroTask extends StatelessWidget {
 
 class _TaskRow extends StatelessWidget {
   final TaskItem task;
-  const _TaskRow({required this.task});
+  final void Function(String recordingId) onOpen;
+  const _TaskRow({required this.task, required this.onOpen});
   @override
   Widget build(BuildContext context) {
     final s = context.sm;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.fromLTRB(8, 6, 16, 6),
-      decoration: BoxDecoration(color: s.card, borderRadius: BorderRadius.circular(22), border: Border.all(color: s.border)),
-      child: Row(children: [
-        IconButton(
-          tooltip: 'Отметить выполненной',
-          onPressed: () => Repo.setTaskDone(task.id, true),
-          icon: Icon(Icons.radio_button_unchecked_rounded, color: s.teal, size: 28),
+    return Dismissible(
+      key: ValueKey('today-${task.id}'),
+      background: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.only(left: 24),
+        decoration: BoxDecoration(color: s.success.withValues(alpha: .18), borderRadius: BorderRadius.circular(22)),
+        child: Icon(Icons.check_rounded, color: s.success),
+      ),
+      secondaryBackground: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 24),
+        decoration: BoxDecoration(color: s.danger.withValues(alpha: .15), borderRadius: BorderRadius.circular(22)),
+        child: Icon(Icons.delete_outline_rounded, color: s.danger),
+      ),
+      onDismissed: (d) => d == DismissDirection.startToEnd ? Repo.setTaskDone(task.id, true) : Repo.deleteTask(task.id),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(color: s.card, borderRadius: BorderRadius.circular(22), border: Border.all(color: s.border)),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22),
+          onTap: task.recordingId == null ? null : () => onOpen(task.recordingId!),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(8, 6, 16, 6),
+            child: Row(children: [
+              IconButton(
+                tooltip: 'Отметить выполненной',
+                onPressed: () => Repo.setTaskDone(task.id, true),
+                icon: Icon(Icons.radio_button_unchecked_rounded, color: s.teal, size: 28),
+              ),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(task.text, maxLines: 2, overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: s.text, fontWeight: FontWeight.w700, fontSize: 15)),
+                  if (task.dueText != null || task.assignee != null)
+                    Text([if (task.assignee != null) task.assignee!, if (task.dueText != null) task.dueText!].join(' · '),
+                        style: TextStyle(color: s.muted, fontSize: 13)),
+                ]),
+              ),
+              if (task.recordingId != null) Icon(Icons.chevron_right_rounded, color: s.muted),
+            ]),
+          ),
         ),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(task.text, maxLines: 2, overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: s.text, fontWeight: FontWeight.w700, fontSize: 15)),
-            if (task.dueText != null) Text(task.dueText!, style: TextStyle(color: s.muted, fontSize: 13)),
-          ]),
-        ),
-      ]),
+      ),
     );
   }
 }
@@ -494,7 +556,7 @@ class RecordingsPageState extends State<RecordingsPage> {
                   'Обычно папка: Music/Recordings/Call Recordings', style: TextStyle(color: s.muted)),
               onTap: () {
                 Navigator.pop(context);
-                importAudio(context, call: true);
+                importAudio(context, call: true, folderId: folderById(_filter)?.id);
               },
             ),
             ListTile(
@@ -503,7 +565,7 @@ class RecordingsPageState extends State<RecordingsPage> {
               subtitle: Text('Диктофон, голосовые, записи Телемоста и Zoom', style: TextStyle(color: s.muted)),
               onTap: () {
                 Navigator.pop(context);
-                importAudio(context);
+                importAudio(context, folderId: folderById(_filter)?.id);
               },
             ),
           ]),

@@ -26,6 +26,10 @@ def quota_ok(profile, duration_sec: int) -> bool:
     return profile["seconds_used"] + duration_sec <= limit * 60
 
 
+def user_names(profile) -> list[str]:
+    return [n for n in [profile.get("display_name"), *(profile.get("name_aliases") or [])] if n]
+
+
 def handle(rec):
     rid = rec["id"]
     log.info("job %s (%s)", rid, rec["audio_path"])
@@ -45,7 +49,8 @@ def handle(rec):
         out = pipeline.process_file(src, db.get_vocabulary(rec["user_id"]), profile["llm_provider"],
                                     on_stage=lambda s: db.set_stage(rid, s), mode=rec.get("mode") or "meeting",
                                     marks=rec.get("marks") or [], recorded_at=tz_rec,
-                                    folders=[f["name"] for f in db.get_folders(rec["user_id"])])
+                                    folders=[f["name"] for f in db.get_folders(rec["user_id"])],
+                                    user_names=user_names(profile))
     db.save_results(rec, out["duration_sec"], out["segments"], out["result"], out["model"])
     try:
         storage.delete(rec["audio_path"])

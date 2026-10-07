@@ -12,6 +12,7 @@ import '../widgets/mari_orb.dart';
 import '../services/api.dart';
 import '../services/calendar.dart';
 import '../services/local_files.dart';
+import '../services/uploader.dart';
 import '../services/repo.dart';
 import '../theme.dart';
 import '../widgets/player.dart';
@@ -58,68 +59,97 @@ class _ProcessingView extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ValueListenableBuilder<Map<String, UploadState>>(
+        valueListenable: Uploader.state,
+        builder: (context, up, _) => _build(context, up[r.id]),
+      );
+
+  Widget _build(BuildContext context, UploadState? up) {
+    final s = context.sm;
     final stage = r.stage;
     final uploaded = r.status != 'uploading';
     final transcribed = r.status == 'processing' && stage == 'summarizing';
-    Widget step(String title, bool done, bool active) => Card(
-          child: ListTile(
-            title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-            subtitle: Padding(
-              padding: const EdgeInsets.only(top: 10),
-              child: LinearProgressIndicator(
-                value: done ? 1 : (active ? null : 0),
-                minHeight: 6,
-                color: context.sm.accent,
-                backgroundColor: context.sm.border,
-                borderRadius: BorderRadius.circular(3),
-              ),
-            ),
-          ),
+    final diarizing = r.status == 'processing' && (stage == 'diarizing' || transcribed);
+    Widget step(String title, String? sub, bool done, bool active, {double? value}) => Container(
+          margin: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(color: s.card, borderRadius: BorderRadius.circular(20), border: Border.all(color: s.border)),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Icon(done ? Icons.check_circle_rounded : (active ? Icons.radio_button_checked_rounded : Icons.radio_button_unchecked_rounded),
+                  color: done ? s.success : (active ? s.accentText : s.muted), size: 20),
+              const SizedBox(width: 10),
+              Expanded(child: Text(title, style: TextStyle(color: s.text, fontWeight: FontWeight.w700))),
+              if (sub != null) Text(sub, style: TextStyle(color: s.muted, fontSize: 13)),
+            ]),
+            if (active) ...[
+              const SizedBox(height: 10),
+              LinearProgressIndicator(value: value, minHeight: 6, color: s.accent, backgroundColor: s.border,
+                  borderRadius: BorderRadius.circular(3)),
+            ],
+          ]),
         );
+    final failed = r.status == 'error' || r.status == 'limit_exceeded';
+    final dur = r.durationSec;
+    final eta = dur == null ? null : 'примерно ${((dur * 0.3) / 60).ceil().clamp(1, 120)} мин';
     return Scaffold(
       appBar: AppBar(title: Text(r.title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17))),
       body: ListView(padding: const EdgeInsets.symmetric(vertical: 16), children: [
-        if (r.status == 'error' || r.status == 'limit_exceeded')
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(r.status == 'error' ? 'Не получилось обработать запись' : 'Закончились бесплатные минуты',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-                if (r.error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(r.error!)),
-                const SizedBox(height: 12),
-                if (r.status == 'limit_exceeded')
-                  FilledButton(
-                    onPressed: () async {
-                      final ok = await Navigator.push<bool>(
-                          context, MaterialPageRoute(builder: (_) => const PaywallScreen()));
-                      if (ok == true && context.mounted) await _retry(context);
-                    },
-                    child: const Text('Оформить подписку'),
-                  )
-                else
-                  FilledButton(onPressed: () => _retry(context), child: const Text('Попробовать снова')),
-              ]),
-            ),
+        if (failed)
+          Container(
+            margin: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(color: s.card, borderRadius: BorderRadius.circular(22), border: Border.all(color: s.border)),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(r.status == 'error' ? 'Не получилось обработать запись' : 'Закончились минуты в этом месяце',
+                  style: display(17, color: s.text)),
+              if (r.error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(r.error!, style: TextStyle(color: s.muted))),
+              const SizedBox(height: 14),
+              if (r.status == 'limit_exceeded')
+                FilledButton(
+                  onPressed: () async {
+                    final ok = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => const PaywallScreen()));
+                    if (ok == true && context.mounted) await _retry(context);
+                  },
+                  child: const Text('Оформить подписку'),
+                )
+              else
+                FilledButton(onPressed: () => _retry(context), child: const Text('Попробовать снова')),
+            ]),
           )
         else ...[
           const SizedBox(height: 12),
           const Center(child: MariOrb(size: 140)),
           const SizedBox(height: 24),
-          Center(child: Text('Мари разбирает запись', style: display(20, color: context.sm.text))),
+          Center(child: Text(uploaded ? 'Мари разбирает запись' : 'Загружаю запись', style: display(20, color: s.text))),
           Padding(
             padding: const EdgeInsets.fromLTRB(32, 8, 32, 20),
-            child: Text('Можно выйти из приложения — результат появится здесь, а мы пришлём уведомление.',
-                textAlign: TextAlign.center, style: TextStyle(color: context.sm.muted, height: 1.4)),
+            child: Text(
+                uploaded
+                    ? 'Можно выйти из приложения — результат появится здесь.'
+                    : 'Не закрывайте приложение до окончания загрузки. Если связь пропадёт — загрузка продолжится сама.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: s.muted, height: 1.4)),
           ),
-          step('Загрузка аудио', uploaded, !uploaded),
-          step('Расшифровка и спикеры', transcribed, r.status == 'processing' && !transcribed),
-          step('Резюме и задачи', false, transcribed),
-          if (r.status == 'uploading' && LocalFiles.exists(r.localAudio))
+          if (up?.error != null)
             Padding(
-              padding: const EdgeInsets.all(16),
-              child: OutlinedButton(onPressed: () => _retry(context), child: const Text('Отправить ещё раз')),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              child: Column(children: [
+                Text(up!.error!, textAlign: TextAlign.center, style: TextStyle(color: s.danger)),
+                const SizedBox(height: 8),
+                FilledButton(onPressed: () => _retry(context), child: const Text('Повторить загрузку')),
+              ]),
+            ),
+          step('Загрузка', uploaded ? null : (up == null ? null : '${(up.progress * 100).round()}%'), uploaded, !uploaded,
+              value: up == null || up.progress == 0 ? null : up.progress),
+          step('Расшифровка', r.status == 'processing' && !diarizing ? eta : null, diarizing,
+              r.status == 'queued' || (r.status == 'processing' && !diarizing)),
+          step('Спикеры', null, transcribed, r.status == 'processing' && stage == 'diarizing'),
+          step('Итог и задачи', null, false, transcribed),
+          if (r.status == 'queued')
+            Padding(
+              padding: const EdgeInsets.fromLTRB(32, 6, 32, 0),
+              child: Text('В очереди на обработку', textAlign: TextAlign.center, style: TextStyle(color: s.muted)),
             ),
         ],
       ]),
