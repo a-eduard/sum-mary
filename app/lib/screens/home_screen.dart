@@ -218,7 +218,8 @@ class GlassNav extends StatelessWidget {
 }
 
 /// Выбор режима записи.
-void showModeSheet(BuildContext context, {required void Function(String) onPick}) {
+void showModeSheet(BuildContext context,
+    {required void Function(String) onPick, String title = 'Что записываем?', String? current}) {
   final s = context.sm;
   showModalBottomSheet(
     context: context,
@@ -226,12 +227,17 @@ void showModeSheet(BuildContext context, {required void Function(String) onPick}
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Что записываем?', style: display(18, color: s.text)),
+          Text(title, style: display(18, color: s.text)),
+          if (current != null) ...[
+            const SizedBox(height: 6),
+            Text('Мари перепишет итог под выбранный тип', style: TextStyle(color: s.muted, fontSize: 13)),
+          ],
           const SizedBox(height: 16),
           Wrap(spacing: 10, runSpacing: 10, children: [
             for (final m in recModes)
               ActionChip(
-                avatar: Icon(m.icon, size: 18, color: m.color),
+                avatar: Icon(m.id == current ? Icons.check_rounded : m.icon, size: 18, color: m.color),
+                side: m.id == current ? BorderSide(color: m.color, width: 1.5) : null,
                 label: Text(m.label),
                 onPressed: () {
                   Navigator.pop(context);

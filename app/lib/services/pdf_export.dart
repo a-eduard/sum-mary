@@ -74,9 +74,9 @@ class PdfExport {
         case 'important':
           return pw.Container(
             padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: pw.BoxDecoration(color: const PdfColor.fromInt(0x14C0263F), borderRadius: pw.BorderRadius.circular(4)),
+            decoration: pw.BoxDecoration(color: const PdfColor.fromInt(0xFFFCE8EC), borderRadius: pw.BorderRadius.circular(4)),
             child: pw.RichText(text: pw.TextSpan(children: [
-              pw.TextSpan(text: '★ ${k.text}', style: pw.TextStyle(color: _red, fontWeight: pw.FontWeight.bold, fontSize: base)),
+              pw.TextSpan(text: 'Важно: ${k.text}', style: pw.TextStyle(color: _red, fontWeight: pw.FontWeight.bold, fontSize: base)),
               time,
             ])),
           );

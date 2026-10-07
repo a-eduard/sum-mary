@@ -236,8 +236,8 @@ class _QuizState extends State<_Quiz> {
       if (_picked != null) ...[
         const SizedBox(height: 6),
         Text('${q['explain'] ?? ''}', style: TextStyle(color: s.text, height: 1.45)),
-        if (q['source'] != null && '${q['source']}' != 'null')
-          Padding(padding: const EdgeInsets.only(top: 6), child: Text('Источник: ${q['source']}', style: TextStyle(color: s.muted, fontSize: 13))),
+        if (_src(q['source']).isNotEmpty)
+          Padding(padding: const EdgeInsets.only(top: 6), child: Text('Источник: ${_src(q['source'])}', style: TextStyle(color: s.muted, fontSize: 13))),
         const SizedBox(height: 18),
         SizedBox(
           height: 54,
@@ -371,4 +371,11 @@ class _TicketAnswers extends StatelessWidget {
         ),
     ]);
   }
+}
+
+/// Источник от модели: убираем пустые метки времени «00:00» и мусор.
+String _src(dynamic v) {
+  final t = '${v ?? ''}'.trim();
+  if (t.isEmpty || t == 'null') return '';
+  return t.replaceAll(RegExp(r',?\s*0?0:00(:00)?$'), '').trim();
 }

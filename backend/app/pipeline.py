@@ -36,6 +36,9 @@ def process_file(path: str, vocabulary: list[str] | None = None, provider: str =
                                       user_names=user_names)
         segs = llm.apply_term_fixes(segs, result.get("term_fixes", []))
     else:
-        result, model = {"title": "Пустая запись", "summary": "В записи не найдено речи.", "tasks": []}, "-"
+        result, model = {"title": "Речи не слышно",
+                          "summary": "Мари не услышала в записи речи. Проверьте, что микрофон не закрыт, "
+                                     "и положите телефон ближе к говорящему. Эту запись можно удалить.",
+                          "tasks": []}, "-"
     return {"duration_sec": dur, "segments": segs, "result": result, "model": model,
             "mode": mode if mode != "auto" else "meeting"}

@@ -174,6 +174,7 @@ class _ReadyViewState extends State<_ReadyView> {
   List<Segment> _segs = [];
   Summary? _summary;
   bool _loading = true;
+  String? _busy;
 
   @override
   void initState() {
@@ -188,6 +189,7 @@ class _ReadyViewState extends State<_ReadyView> {
       _segs = res[0] as List<Segment>;
       _summary = res[1] as Summary?;
       _loading = false;
+      _busy = null;
     });
   }
 
@@ -204,9 +206,12 @@ class _ReadyViewState extends State<_ReadyView> {
     return b.toString();
   }
 
-  void _changeMode() => showModeSheet(context, onPick: (m) async {
+  void _changeMode() => showModeSheet(context, title: 'Тип записи', current: r.mode, onPick: (m) async {
         if (m == r.mode) return;
-        setState(() => _loading = true);
+        setState(() {
+          _loading = true;
+          _busy = 'Мари пересобирает итог\nкак «${modeById(m).label}»…\nОбычно это меньше минуты';
+        });
         try {
           await Api.resummarize(r.id, m);
         } catch (e) {
@@ -343,9 +348,16 @@ class _ReadyViewState extends State<_ReadyView> {
           ],
         ),
         body: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : Column(children: [
-                Padding(
+            ? Center(
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const MariOrb(size: 72),
+                  const SizedBox(height: 20),
+                  Text(_busy ?? 'Открываю…', textAlign: TextAlign.center, style: TextStyle(color: context.sm.muted, fontSize: 15)),
+                ]),
+              )
+            : NestedScrollView(
+                headerSliverBuilder: (context, _) => [
+                SliverToBoxAdapter(child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Row(children: [
@@ -371,8 +383,8 @@ class _ReadyViewState extends State<_ReadyView> {
                     const SizedBox(height: 10),
                     Text(r.title, style: display(21, color: context.sm.text)),
                   ]),
-                ),
-                SizedBox(
+                )),
+                SliverToBoxAdapter(child: SizedBox(
                   height: 60,
                   child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), children: [
                     _Action(Icons.chat_bubble_outline_rounded, 'Спросить Мари', () => Navigator.push(context,
@@ -383,36 +395,66 @@ class _ReadyViewState extends State<_ReadyView> {
                     _Action(Icons.people_outline_rounded, 'Спикеры', _speakers),
                     _Action(Icons.ios_share_rounded, 'Поделиться', () => Share.share(_summaryText())),
                   ]),
-                ),
+                )),
                 if (r.folderId == null && folderById(r.suggestedFolderId) != null)
-                  _SuggestBanner(r: r, folder: folderById(r.suggestedFolderId)!),
-                TabBar(
-                  labelColor: context.sm.text,
-                  unselectedLabelColor: context.sm.muted,
-                  indicatorColor: context.sm.accent,
-                  indicatorWeight: 2.5,
-                  dividerColor: context.sm.border,
-                  labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-                  tabs: const [Tab(text: 'Итог'), Tab(text: 'Текст'), Tab(text: 'Задачи')],
+                  SliverToBoxAdapter(child: _SuggestBanner(r: r, folder: folderById(r.suggestedFolderId)!)),
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _TabsHeader(
+                    color: Theme.of(context).scaffoldBackgroundColor,
+                    bar: TabBar(
+                      labelColor: context.sm.text,
+                      unselectedLabelColor: context.sm.muted,
+                      indicatorColor: context.sm.accent,
+                      indicatorWeight: 2.5,
+                      dividerColor: context.sm.border,
+                      labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                      tabs: const [Tab(text: 'Итог'), Tab(text: 'Текст'), Tab(text: 'Задачи')],
+                    ),
+                  ),
                 ),
-                Expanded(
-                  child: TabBarView(children: [
-                    _SummaryTab(summary: _summary, title: r.title, onSeek: hasAudio ? _player.seek : null),
-                    _TranscriptTab(r: r, segs: _segs, onTap: hasAudio ? _player.seek : null),
-                    _TasksTab(recordingId: r.id),
-                  ]),
-                ),
-              ]),
+                ],
+                body: TabBarView(children: [
+                  _SummaryTab(summary: _summary, title: r.title, onSeek: hasAudio ? _player.seek : null),
+                  _TranscriptTab(r: r, segs: _segs, onTap: hasAudio ? _player.seek : null),
+                  _TasksTab(recordingId: r.id),
+                ]),
+              ),
         bottomNavigationBar: hasAudio ? AudioPlayerBar(path: r.localAudio!, controller: _player) : null,
       ),
     );
   }
 }
 
+class _TabsHeader extends SliverPersistentHeaderDelegate {
+  final TabBar bar;
+  final Color color;
+  _TabsHeader({required this.bar, required this.color});
+  @override
+  double get minExtent => bar.preferredSize.height;
+  @override
+  double get maxExtent => bar.preferredSize.height;
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) => ColoredBox(color: color, child: bar);
+  @override
+  bool shouldRebuild(covariant _TabsHeader old) => old.color != color;
+}
+
 class _SuggestBanner extends StatelessWidget {
   final Recording r;
   final Folder folder;
   const _SuggestBanner({required this.r, required this.folder});
+
+  Future<void> _accept(BuildContext context) async {
+    final m = ScaffoldMessenger.of(context);
+    try {
+      await Repo.moveToFolder(r.id, folder.id);
+      m.showSnackBar(SnackBar(content: Text('Положила в «${folder.name}»')));
+    } catch (e) {
+      m.showSnackBar(SnackBar(content: Text('Не получилось: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = context.sm;
@@ -423,9 +465,15 @@ class _SuggestBanner extends StatelessWidget {
       child: Row(children: [
         const MariOrb(size: 26, glow: false),
         const SizedBox(width: 10),
-        Expanded(child: Text('Похоже, это «${folder.name}». Положить туда?', style: TextStyle(color: s.text, fontSize: 14))),
+        Expanded(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => _accept(context),
+            child: Text('Похоже, это «${folder.name}». Положить туда?', style: TextStyle(color: s.text, fontSize: 14)),
+          ),
+        ),
         TextButton(
-          onPressed: () => Repo.moveToFolder(r.id, folder.id),
+          onPressed: () => _accept(context),
           child: Text('Да', style: TextStyle(color: s.accentText, fontWeight: FontWeight.w800)),
         ),
         IconButton(
