@@ -45,6 +45,35 @@ def chat(body: ChatIn, user_id: str = Depends(current_user)):
     return {"answer": answer}
 
 
+class ResummarizeIn(BaseModel):
+    recording_id: str
+    mode: str
+
+
+@app.post("/resummarize")
+def resummarize(body: ResummarizeIn, user_id: str = Depends(current_user)):
+    """Пересобрать итог в другом режиме (урок → лекция и т. п.) без повторной расшифровки."""
+    from datetime import timedelta, timezone
+    from zoneinfo import ZoneInfo
+    if body.mode not in llm.MODES:
+        raise HTTPException(400, "Неизвестный режим")
+    rec, data = db.get_transcript_for_chat(body.recording_id, user_id)
+    if not rec:
+        raise HTTPException(404, "Запись не найдена")
+    if not data["segments"]:
+        raise HTTPException(409, "Запись ещё обрабатывается")
+    off = rec.get("tz_offset_min")
+    tz = timezone(timedelta(minutes=off)) if off is not None else ZoneInfo("Europe/Moscow")
+    profile = db.get_profile(user_id)
+    result, model = llm.summarize(
+        llm.format_transcript(data["segments"], rec.get("speaker_names") or {}), db.get_vocabulary(user_id),
+        profile["llm_provider"], mode=body.mode, marks=rec.get("marks") or [],
+        recorded_at=rec["recorded_at"].astimezone(tz).replace(tzinfo=None),
+        folders=[f["name"] for f in db.get_folders(user_id)])
+    db.save_summary(rec, result, model, body.mode)
+    return {"ok": True}
+
+
 class PurchaseIn(BaseModel):
     purchase_id: str
     product_id: str

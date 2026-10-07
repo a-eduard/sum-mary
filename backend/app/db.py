@@ -96,6 +96,53 @@ def _date(v):
         return None
 
 
+def _write_summary(c, rec, result: dict, model: str):
+    """Итог, задачи и подсказка полки (без транскрипта и без учёта минут)."""
+    rid, uid = rec["id"], rec["user_id"]
+    c.execute(
+        """
+        insert into public.summaries (recording_id, user_id, summary, decisions, open_questions,
+                                      responsibilities, term_fixes, model, key_points, sections, events, explanations)
+        values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        on conflict (recording_id) do update set summary=excluded.summary, decisions=excluded.decisions,
+          open_questions=excluded.open_questions, responsibilities=excluded.responsibilities,
+          term_fixes=excluded.term_fixes, model=excluded.model, key_points=excluded.key_points,
+          sections=excluded.sections, events=excluded.events, explanations=excluded.explanations, created_at=now()
+        """,
+        (rid, uid, result.get("summary", ""), _j(result, "decisions"), _j(result, "open_questions"),
+         _j(result, "responsibilities"), _j(result, "term_fixes"), model,
+         _j(result, "key_points"), _j(result, "sections"), _j(result, "events"), _j(result, "explanations")),
+    )
+    c.execute("delete from public.tasks where recording_id=%s", (rid,))
+    for t in result.get("tasks", []):
+        if not t.get("text"):
+            continue
+        c.execute(
+            "insert into public.tasks (user_id, recording_id, text, assignee, due_text, due_date, t_sec) "
+            "values (%s,%s,%s,%s,%s,%s,%s)",
+            (uid, rid, t["text"], t.get("assignee"), t.get("due"), _date(t.get("due_date")), t.get("t_sec")),
+        )
+    if not rec.get("folder_id") and result.get("folder"):
+        f = c.execute("select id from public.folders where user_id=%s and lower(name)=lower(%s) limit 1",
+                      (uid, str(result["folder"]).strip())).fetchone()
+        if f:
+            c.execute("update public.recordings set suggested_folder_id=%s where id=%s", (f["id"], rid))
+
+
+def save_summary(rec, result: dict, model: str, mode: str):
+    """Пересборка итога в другом режиме по уже готовой расшифровке."""
+    with conn() as c:
+        _write_summary(c, rec, result, model)
+        c.execute("update public.recordings set mode=%s where id=%s", (mode, rec["id"]))
+        c.commit()
+
+
+def get_segments(rec_id) -> list[dict]:
+    with conn() as c:
+        return c.execute("select speaker, start_ms, end_ms, text from public.segments where recording_id=%s order by idx",
+                         (rec_id,)).fetchall()
+
+
 def save_results(rec, duration_sec: int, segments: list[dict], result: dict, model: str):
     """Сохраняет транскрипт, резюме и задачи одной транзакцией."""
     rid, uid = rec["id"], rec["user_id"]
@@ -107,29 +154,7 @@ def save_results(rec, duration_sec: int, segments: list[dict], result: dict, mod
                 "values (%s,%s,%s,%s,%s,%s,%s)",
                 [(rid, uid, i, s["speaker"], s["start_ms"], s["end_ms"], s["text"]) for i, s in enumerate(segments)],
             )
-        c.execute(
-            """
-            insert into public.summaries (recording_id, user_id, summary, decisions, open_questions,
-                                          responsibilities, term_fixes, model, key_points, sections, events, explanations)
-            values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-            on conflict (recording_id) do update set summary=excluded.summary, decisions=excluded.decisions,
-              open_questions=excluded.open_questions, responsibilities=excluded.responsibilities,
-              term_fixes=excluded.term_fixes, model=excluded.model, key_points=excluded.key_points,
-              sections=excluded.sections, events=excluded.events, explanations=excluded.explanations, created_at=now()
-            """,
-            (rid, uid, result.get("summary", ""), _j(result, "decisions"), _j(result, "open_questions"),
-             _j(result, "responsibilities"), _j(result, "term_fixes"), model,
-             _j(result, "key_points"), _j(result, "sections"), _j(result, "events"), _j(result, "explanations")),
-        )
-        c.execute("delete from public.tasks where recording_id=%s", (rid,))
-        for t in result.get("tasks", []):
-            if not t.get("text"):
-                continue
-            c.execute(
-                "insert into public.tasks (user_id, recording_id, text, assignee, due_text, due_date, t_sec) "
-                "values (%s,%s,%s,%s,%s,%s,%s)",
-                (uid, rid, t["text"], t.get("assignee"), t.get("due"), _date(t.get("due_date")), t.get("t_sec")),
-            )
+        _write_summary(c, rec, result, model)
         title = result.get("title")
         keep_title = rec.get("title") and rec["title"] != "Новая запись"
         c.execute(
@@ -137,11 +162,6 @@ def save_results(rec, duration_sec: int, segments: list[dict], result: dict, mod
             "processed_at=now(), title=%s where id=%s",
             (duration_sec, rec["title"] if keep_title or not title else title, rid),
         )
-        if not rec.get("folder_id") and result.get("folder"):
-            f = c.execute("select id from public.folders where user_id=%s and lower(name)=lower(%s) limit 1",
-                          (uid, str(result["folder"]).strip())).fetchone()
-            if f:
-                c.execute("update public.recordings set suggested_folder_id=%s where id=%s", (f["id"], rid))
         c.execute("update public.profiles set seconds_used = seconds_used + %s where id=%s", (duration_sec, uid))
         c.commit()
 

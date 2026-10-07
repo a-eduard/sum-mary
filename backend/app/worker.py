@@ -18,6 +18,8 @@ PRO_MINUTES = 3000  # Pro: 50 часов в месяц
 
 def quota_ok(profile, duration_sec: int) -> bool:
     from datetime import datetime, timezone
+    if profile.get("is_admin"):
+        return True  # тестировщик: без лимита
     pro = profile["plan"] == "pro" and (profile["plan_expires_at"] is None
                                         or profile["plan_expires_at"] > datetime.now(timezone.utc))
     limit = PRO_MINUTES if pro else profile["minutes_limit"]
