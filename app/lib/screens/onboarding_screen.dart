@@ -22,6 +22,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final _extra = <String, List<String>>{}; // роль → свои полки
   final _input = <String, TextEditingController>{};
   bool _saving = false;
+  final _name = TextEditingController();
+  final _aliases = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    Repo.profile().then((p) {
+      if (!mounted) return;
+      _name.text = p.displayName ?? '';
+      _aliases.text = p.nameAliases.join(', ');
+      if (widget.fromSettings && p.roles.isNotEmpty) setState(() => _roles.addAll(p.roles.where((r) => !_roles.contains(r))));
+      if (p.grade != null) _grade = p.grade!;
+    }).catchError((_) {});
+  }
 
   List<String> _options(String role) => switch (role) {
         'school' => schoolSubjects(_grade),
@@ -51,6 +65,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         }
       }
       await Repo.createFolders(items);
+      if (_name.text.trim().isNotEmpty) {
+        await Repo.saveName(_name.text,
+            _aliases.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList());
+      }
       await Repo.saveOnboarding(
           roles: _roles, grade: _roles.contains('school') ? _grade : null, defaultMode: roleById(_roles.first).mode);
       widget.onDone();
@@ -82,9 +100,27 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             const SizedBox(height: 20),
             Text('Привет! Я Мари', textAlign: TextAlign.center, style: display(24, color: s.text)),
             const SizedBox(height: 8),
-            Text('Расскажите, что будете записывать — я подготовлю полки и итоги под вас. Можно выбрать несколько.',
+            Text('Расскажите о себе — я подготовлю полки и итоги под вас.',
                 textAlign: TextAlign.center, style: TextStyle(color: s.muted, height: 1.4)),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
+            TextField(
+              controller: _name,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(labelText: 'Как вас зовут?', hintText: 'Эдуард'),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _aliases,
+              decoration: const InputDecoration(
+                  labelText: 'Как к вам ещё обращаются (необязательно)', hintText: 'Эдик, Эдуард Альбертович'),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 6, 4, 0),
+              child: Text('Мари отметит задачи, которые поручили лично вам.', style: TextStyle(color: s.muted, fontSize: 12)),
+            ),
+            const SizedBox(height: 20),
+            Text('Кто вы? Можно выбрать несколько', style: TextStyle(color: s.text, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 10),
             GridView.count(
               crossAxisCount: 2,
               shrinkWrap: true,

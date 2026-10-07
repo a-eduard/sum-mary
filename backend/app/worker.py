@@ -60,12 +60,13 @@ def handle(rec):
 
 
 def main():
-    db.requeue_stale()
-    log.info("worker started, threads=%s", config.NUM_THREADS)
+    if not config.WORKER_MAX_SEC:
+        db.requeue_stale()
+    log.info("worker started, threads=%s, max_sec=%s", config.NUM_THREADS, config.WORKER_MAX_SEC or "∞")
     while True:
         rec = None
         try:
-            rec = db.claim_job()
+            rec = db.claim_job(config.WORKER_MAX_SEC)
             if not rec:
                 time.sleep(config.POLL_SECONDS)
                 continue

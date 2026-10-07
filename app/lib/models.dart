@@ -147,6 +147,7 @@ class TaskItem {
   final String? dueText;
   final DateTime? dueDate;
   final int? tSec;
+  final bool forMe;
   final bool done;
   final DateTime createdAt;
 
@@ -158,6 +159,7 @@ class TaskItem {
         dueText = m['due_text'],
         dueDate = m['due_date'] == null ? null : DateTime.parse(m['due_date']),
         tSec = (m['t_sec'] as num?)?.toInt(),
+        forMe = m['for_me'] ?? false,
         done = m['done'] ?? false,
         createdAt = DateTime.parse(m['created_at']).toLocal();
 }
@@ -175,6 +177,8 @@ class Folder {
 }
 
 class Profile {
+  final String? displayName;
+  final List<String> nameAliases;
   final List<String> roles;
   final int? grade;
   final bool onboarded;
@@ -186,7 +190,9 @@ class Profile {
   final int secondsUsed;
 
   Profile.fromMap(Map<String, dynamic> m)
-      : roles = List<String>.from(m['roles'] ?? const []),
+      : displayName = m['display_name'],
+        nameAliases = List<String>.from(m['name_aliases'] ?? const []),
+        roles = List<String>.from(m['roles'] ?? const []),
         grade = m['grade'],
         onboarded = m['onboarded'] ?? false,
         isAdmin = m['is_admin'] ?? false,

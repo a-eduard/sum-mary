@@ -141,8 +141,8 @@ class Repo {
       .map((rows) => rows.map(TaskItem.fromMap).toList()));
 
   static Future<void> setTaskDone(String id, bool done) => sb.from('tasks').update({'done': done}).eq('id', id);
-  static Future<void> addTask(String text, {String? recordingId}) =>
-      sb.from('tasks').insert({'text': text, 'recording_id': recordingId});
+  static Future<void> addTask(String text, {String? recordingId, bool forMe = true}) =>
+      sb.from('tasks').insert({'text': text, 'recording_id': recordingId, 'for_me': forMe});
   static Future<void> deleteTask(String id) => sb.from('tasks').delete().eq('id', id);
 
   // ---------- полки ----------
@@ -174,6 +174,9 @@ class Repo {
 
   static Future<void> moveToFolder(String recordingId, String? folderId) =>
       sb.from('recordings').update({'folder_id': folderId, 'suggested_folder_id': null}).eq('id', recordingId);
+
+  static Future<void> saveName(String name, List<String> aliases) =>
+      sb.from('profiles').update({'display_name': name.trim(), 'name_aliases': aliases}).eq('id', uid);
 
   static Future<void> saveOnboarding({required List<String> roles, int? grade, required String defaultMode}) =>
       sb.from('profiles').update({'roles': roles, 'grade': grade, 'default_mode': defaultMode, 'onboarded': true}).eq('id', uid);

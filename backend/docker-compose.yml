@@ -7,6 +7,17 @@ services:
     restart: unless-stopped
     command: python -m app.worker
     networks: [default, supabase]
+  # «Быстрая полоса»: только короткие записи (до 15 мин), чтобы они не ждали длинные лекции
+  worker-fast:
+    image: sammari-backend:latest
+    depends_on: [worker]
+    env_file: .env
+    environment:
+      WORKER_MAX_SEC: "900"
+      NUM_THREADS: "2"
+    restart: unless-stopped
+    command: python -m app.worker
+    networks: [default, supabase]
   api:
     image: sammari-backend:latest   # тот же образ, что и worker (собирается один раз)
     depends_on: [worker]

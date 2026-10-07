@@ -25,6 +25,8 @@ GIGAAM_MODEL = _env("GIGAAM_MODEL", "v3_e2e_rnnt")
 DIARIZATION_THRESHOLD = float(_env("DIARIZATION_THRESHOLD", "0.6"))
 NUM_THREADS = int(_env("NUM_THREADS", str(os.cpu_count() or 4)))
 POLL_SECONDS = float(_env("POLL_SECONDS", "3"))
+# Если задано — worker берёт только записи не длиннее стольких секунд (быстрая полоса).
+WORKER_MAX_SEC = int(_env("WORKER_MAX_SEC", "0"))
 AUDIO_BUCKET = _env("AUDIO_BUCKET", "audio")
 
 # RuStore Public API — проверка подписок

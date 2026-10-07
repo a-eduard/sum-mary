@@ -14,8 +14,9 @@ def conn():
         yield c
 
 
-def claim_job():
-    """Берёт одну запись из очереди. Несколько worker'ов не возьмут одну и ту же."""
+def claim_job(max_sec: int = 0):
+    """Берёт одну запись из очереди (короткие — первыми). Несколько worker'ов не возьмут одну и ту же.
+    max_sec > 0 — только записи с известной длительностью не больше max_sec (быстрая полоса)."""
     with conn() as c:
         row = c.execute(
             """
@@ -23,11 +24,12 @@ def claim_job():
             where id = (
               select id from public.recordings
               where status = 'queued' and deleted_at is null
-              order by created_at
+                and (%(max)s = 0 or (duration_sec is not null and duration_sec <= %(max)s))
+              order by coalesce(duration_sec, 1000000), created_at
               for update skip locked
               limit 1)
             returning *
-            """
+            """, {"max": max_sec}
         ).fetchone()
         c.commit()
         return row

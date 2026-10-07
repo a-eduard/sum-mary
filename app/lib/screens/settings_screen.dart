@@ -7,6 +7,7 @@ import '../services/billing.dart';
 import '../services/repo.dart';
 import '../theme.dart';
 import 'onboarding_screen.dart';
+import 'notifications_screen.dart';
 import 'paywall_screen.dart';
 import 'vocabulary_screen.dart';
 
@@ -18,6 +19,30 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   late Future<Profile> _profile = Billing.restore().then((_) => Repo.profile());
+
+  Future<void> _editName() async {
+    final p = await Repo.profile();
+    if (!mounted) return;
+    final name = TextEditingController(text: p.displayName ?? '');
+    final aliases = TextEditingController(text: p.nameAliases.join(', '));
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Как вас зовут?'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: name, autofocus: true, textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(labelText: 'Имя')),
+          const SizedBox(height: 10),
+          TextField(controller: aliases, decoration: const InputDecoration(labelText: 'Как ещё обращаются', hintText: 'Эдик, Эдуард Альбертович')),
+        ]),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Сохранить'))],
+      ),
+    );
+    if (ok == true && name.text.trim().isNotEmpty) {
+      await Repo.saveName(name.text, aliases.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList());
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Сохранено')));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -111,6 +136,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       Card(
         child: Column(children: [
+          ListTile(
+            leading: const Icon(Icons.badge_outlined),
+            title: const Text('Имя'),
+            subtitle: const Text('Мари отмечает задачи, которые поручили вам'),
+            onTap: _editName,
+          ),
+          ListTile(
+            leading: const Icon(Icons.notifications_none_rounded),
+            title: const Text('Уведомления'),
+            subtitle: const Text('Что присылать и во сколько'),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen())),
+          ),
           ListTile(
             leading: const Icon(Icons.person_search_rounded),
             title: const Text('Роль и полки'),

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 
@@ -9,6 +10,7 @@ import '../models.dart';
 import '../modes.dart';
 import '../services/calendar.dart';
 import '../services/local_files.dart';
+import '../services/notifications.dart';
 import '../services/repo.dart';
 import '../services/uploader.dart';
 import '../theme.dart';
@@ -31,10 +33,69 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _tab = 0;
 
+  final _statuses = <String, String>{};
+  StreamSubscription<List<Recording>>? _recSub;
+  StreamSubscription<List<TaskItem>>? _taskSub;
+  List<TaskItem> _tasks = [];
+  List<EventItem> _events = [];
+
   @override
   void initState() {
     super.initState();
     Repo.pendingUploads().then(Uploader.resumePending).catchError((_) {});
+    Notifications.askPermission();
+    Notifications.openRecording.addListener(_openFromNotification);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _openFromNotification());
+    _recSub = Repo.recordings().listen((list) {
+      for (final r in list) {
+        final prev = _statuses[r.id];
+        if (prev != null && prev != 'ready' && r.status == 'ready') _onReady(r);
+        _statuses[r.id] = r.status;
+      }
+    });
+    _taskSub = Repo.tasks().listen((t) {
+      _tasks = t;
+      _reschedule();
+    });
+    _loadEvents();
+  }
+
+  Future<void> _loadEvents() async {
+    try {
+      _events = await Repo.upcomingEvents();
+      _reschedule();
+    } catch (_) {}
+  }
+
+  void _reschedule() => Notifications.reschedule(_events, _tasks).catchError((_) {});
+
+  void _onReady(Recording r) {
+    _loadEvents();
+    if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Итог готов: ${r.title}'),
+        action: SnackBarAction(
+            label: 'Открыть',
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => RecordingScreen(recordingId: r.id)))),
+      ));
+    } else {
+      Notifications.recordingReady(r);
+    }
+  }
+
+  void _openFromNotification() {
+    final id = Notifications.openRecording.value;
+    if (id == null || !mounted) return;
+    Notifications.openRecording.value = null;
+    Navigator.push(context, MaterialPageRoute(builder: (_) => RecordingScreen(recordingId: id)));
+  }
+
+  @override
+  void dispose() {
+    _recSub?.cancel();
+    _taskSub?.cancel();
+    Notifications.openRecording.removeListener(_openFromNotification);
+    super.dispose();
   }
   final _recordingsKey = GlobalKey<RecordingsPageState>();
 
@@ -318,7 +379,10 @@ class _TodayPageState extends State<TodayPage> {
             builder: (context, snap) {
               final events = (ev.data ?? []).take(2).toList();
               final open = (snap.data ?? []).where((t) => !t.done).toList()
-                ..sort((a, b) => (a.dueDate ?? DateTime(2100)).compareTo(b.dueDate ?? DateTime(2100)));
+                ..sort((a, b) {
+                  if (a.forMe != b.forMe) return a.forMe ? -1 : 1; // сначала мои
+                  return (a.dueDate ?? DateTime(2100)).compareTo(b.dueDate ?? DateTime(2100));
+                });
               final tasks = open.take(events.isEmpty ? 3 : 2).toList();
               if (events.isEmpty && tasks.isEmpty) return const SizedBox.shrink();
               return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
