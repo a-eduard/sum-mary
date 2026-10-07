@@ -78,6 +78,11 @@ def get_vocabulary(user_id) -> list[str]:
             "select term from public.vocabulary where user_id=%s order by created_at", (user_id,))]
 
 
+def get_folders(user_id) -> list[dict]:
+    with conn() as c:
+        return c.execute("select id, name from public.folders where user_id=%s order by sort", (user_id,)).fetchall()
+
+
 def _j(result: dict, key: str) -> str:
     return json.dumps(result.get(key) or [], ensure_ascii=False)
 
@@ -132,6 +137,11 @@ def save_results(rec, duration_sec: int, segments: list[dict], result: dict, mod
             "processed_at=now(), title=%s where id=%s",
             (duration_sec, rec["title"] if keep_title or not title else title, rid),
         )
+        if not rec.get("folder_id") and result.get("folder"):
+            f = c.execute("select id from public.folders where user_id=%s and lower(name)=lower(%s) limit 1",
+                          (uid, str(result["folder"]).strip())).fetchone()
+            if f:
+                c.execute("update public.recordings set suggested_folder_id=%s where id=%s", (f["id"], rid))
         c.execute("update public.profiles set seconds_used = seconds_used + %s where id=%s", (duration_sec, uid))
         c.commit()
 

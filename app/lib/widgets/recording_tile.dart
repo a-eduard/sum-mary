@@ -4,12 +4,14 @@ import 'package:intl/intl.dart';
 import '../models.dart';
 import '../modes.dart';
 import '../theme.dart';
+import 'folder_sheet.dart';
 
 class RecordingTile extends StatelessWidget {
   final Recording r;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
   final EdgeInsets margin;
-  const RecordingTile({super.key, required this.r, required this.onTap, this.margin = const EdgeInsets.symmetric(horizontal: 16, vertical: 5)});
+  const RecordingTile({super.key, required this.r, required this.onTap, this.onLongPress, this.margin = const EdgeInsets.symmetric(horizontal: 16, vertical: 5)});
 
   String get _statusText => switch (r.status) {
         'uploading' => 'Загрузка…',
@@ -29,6 +31,7 @@ class RecordingTile extends StatelessWidget {
     final s = context.sm;
     final m = modeById(r.mode);
     final date = DateFormat('d MMM, HH:mm', 'ru').format(r.recordedAt);
+    final folder = folderById(r.folderId);
     return Padding(
       padding: margin,
       child: Material(
@@ -37,6 +40,7 @@ class RecordingTile extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(22),
           onTap: onTap,
+          onLongPress: onLongPress,
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Row(children: [
@@ -52,7 +56,8 @@ class RecordingTile extends StatelessWidget {
                   Text(r.title, maxLines: 2, overflow: TextOverflow.ellipsis,
                       style: TextStyle(color: s.text, fontWeight: FontWeight.w700, fontSize: 15, height: 1.3)),
                   const SizedBox(height: 3),
-                  Text('${m.label} · $date · $_statusText', style: TextStyle(color: s.muted, fontSize: 13)),
+                  Text('${folder?.name ?? m.label} · $date · $_statusText',
+                      maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: s.muted, fontSize: 13)),
                 ]),
               ),
               if (r.inProgress)

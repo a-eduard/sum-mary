@@ -9,6 +9,8 @@ class Recording {
   final String? localAudio;
   final int? durationSec;
   final Map<String, dynamic> speakerNames;
+  final String? folderId;
+  final String? suggestedFolderId;
   final bool favorite;
   final DateTime recordedAt;
   final DateTime? processedAt;
@@ -24,6 +26,8 @@ class Recording {
         localAudio = m['local_audio'],
         durationSec = m['duration_sec'],
         speakerNames = Map<String, dynamic>.from(m['speaker_names'] ?? {}),
+        folderId = m['folder_id'],
+        suggestedFolderId = m['suggested_folder_id'],
         favorite = m['favorite'] ?? false,
         recordedAt = DateTime.parse(m['recorded_at']).toLocal(),
         processedAt = m['processed_at'] == null ? null : DateTime.parse(m['processed_at']).toLocal();
@@ -69,18 +73,70 @@ List<Turn> groupTurns(List<Segment> segs) {
   return out;
 }
 
+/// Пункт итога с таймкодом: определение, формула, пример, важное, ошибка.
+class KeyPoint {
+  final String text;
+  final String kind;
+  final int? tSec;
+  KeyPoint.fromMap(Map<String, dynamic> m)
+      : text = '${m['text'] ?? ''}',
+        kind = '${m['kind'] ?? 'note'}',
+        tSec = (m['t_sec'] as num?)?.toInt();
+}
+
+/// Событие с датой, найденное в разговоре (контрольная, встреча, дедлайн).
+class EventItem {
+  final String recordingId;
+  final String title;
+  final DateTime date;
+  final String? time;
+  final String kind;
+  final int? tSec;
+  EventItem.fromMap(Map<String, dynamic> m, this.recordingId)
+      : title = '${m['title']}',
+        date = DateTime.parse('${m['date']}'.substring(0, 10)),
+        time = (m['time'] is String && RegExp(r'^\d{1,2}:\d{2}$').hasMatch(m['time'])) ? m['time'] : null,
+        kind = '${m['kind'] ?? 'other'}',
+        tSec = (m['t_sec'] as num?)?.toInt();
+
+  DateTime get start {
+    if (time == null) return date;
+    final p = time!.split(':');
+    return DateTime(date.year, date.month, date.day, int.parse(p[0]), int.parse(p[1]));
+  }
+}
+
 class Summary {
   final String summary;
   final List<String> decisions;
   final List<String> openQuestions;
   final List<Map<String, dynamic>> responsibilities;
+  final List<KeyPoint> keyPoints;
+  final List<(String, List<String>)> sections;
+  final List<Map<String, dynamic>> explanations;
+  final List<EventItem> events;
+
+  static List<Map<String, dynamic>> _maps(dynamic v) =>
+      List<Map<String, dynamic>>.from((v ?? []).whereType<Map>().map((e) => Map<String, dynamic>.from(e)));
 
   Summary.fromMap(Map<String, dynamic> m)
       : summary = m['summary'] ?? '',
         decisions = List<String>.from((m['decisions'] ?? []).map((e) => '$e')),
         openQuestions = List<String>.from((m['open_questions'] ?? []).map((e) => '$e')),
-        responsibilities = List<Map<String, dynamic>>.from(
-            (m['responsibilities'] ?? []).whereType<Map>().map((e) => Map<String, dynamic>.from(e)));
+        responsibilities = _maps(m['responsibilities']),
+        keyPoints = _maps(m['key_points']).map(KeyPoint.fromMap).where((k) => k.text.isNotEmpty).toList(),
+        sections = _maps(m['sections'])
+            .map((e) => ('${e['title'] ?? ''}', List<String>.from((e['items'] ?? []).map((x) => '$x'))))
+            .where((e) => e.$2.isNotEmpty)
+            .toList(),
+        explanations = _maps(m['explanations']),
+        events = _maps(m['events']).map((e) {
+          try {
+            return EventItem.fromMap(e, '${m['recording_id']}');
+          } catch (_) {
+            return null;
+          }
+        }).whereType<EventItem>().toList();
 }
 
 class TaskItem {
@@ -89,6 +145,8 @@ class TaskItem {
   final String text;
   final String? assignee;
   final String? dueText;
+  final DateTime? dueDate;
+  final int? tSec;
   final bool done;
   final DateTime createdAt;
 
@@ -98,18 +156,40 @@ class TaskItem {
         text = m['text'],
         assignee = m['assignee'],
         dueText = m['due_text'],
+        dueDate = m['due_date'] == null ? null : DateTime.parse(m['due_date']),
+        tSec = (m['t_sec'] as num?)?.toInt(),
         done = m['done'] ?? false,
         createdAt = DateTime.parse(m['created_at']).toLocal();
 }
 
+class Folder {
+  final String id;
+  final String name;
+  final String color;
+  final String kind;
+  Folder.fromMap(Map<String, dynamic> m)
+      : id = m['id'],
+        name = m['name'],
+        color = m['color'] ?? '#8B7CFF',
+        kind = m['kind'] ?? 'other';
+}
+
 class Profile {
+  final List<String> roles;
+  final int? grade;
+  final bool onboarded;
+  final String defaultMode;
   final String plan;
   final DateTime? planExpiresAt;
   final int minutesLimit;
   final int secondsUsed;
 
   Profile.fromMap(Map<String, dynamic> m)
-      : plan = m['plan'] ?? 'free',
+      : roles = List<String>.from(m['roles'] ?? const []),
+        grade = m['grade'],
+        onboarded = m['onboarded'] ?? false,
+        defaultMode = m['default_mode'] ?? 'meeting',
+        plan = m['plan'] ?? 'free',
         planExpiresAt = m['plan_expires_at'] == null ? null : DateTime.parse(m['plan_expires_at']),
         minutesLimit = m['minutes_limit'] ?? 30,
         secondsUsed = m['seconds_used'] ?? 0;

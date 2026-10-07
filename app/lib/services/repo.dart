@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -97,6 +98,27 @@ class Repo {
     return row == null ? null : Summary.fromMap(row);
   }
 
+  /// Ближайшие события из всех записей (контрольные, встречи, дедлайны).
+  static Future<List<EventItem>> upcomingEvents() async {
+    final rows = await sb
+        .from('summaries')
+        .select('recording_id, events, recordings!inner(deleted_at)')
+        .isFilter('recordings.deleted_at', null);
+    final today = DateTime.now();
+    final start = DateTime(today.year, today.month, today.day);
+    final out = <EventItem>[];
+    for (final r in rows) {
+      for (final e in (r['events'] as List? ?? [])) {
+        try {
+          final ev = EventItem.fromMap(Map<String, dynamic>.from(e), r['recording_id']);
+          if (!ev.date.isBefore(start)) out.add(ev);
+        } catch (_) {}
+      }
+    }
+    out.sort((a, b) => a.start.compareTo(b.start));
+    return out;
+  }
+
   // ---------- задачи ----------
   static Stream<List<TaskItem>> tasks() => _live(() => sb
       .from('tasks')
@@ -109,6 +131,39 @@ class Repo {
   static Future<void> addTask(String text, {String? recordingId}) =>
       sb.from('tasks').insert({'text': text, 'recording_id': recordingId});
   static Future<void> deleteTask(String id) => sb.from('tasks').delete().eq('id', id);
+
+  // ---------- полки ----------
+  static final folders = ValueNotifier<List<Folder>>([]);
+
+  static Future<List<Folder>> loadFolders() async {
+    final rows = await sb.from('folders').select().order('sort').order('created_at');
+    folders.value = rows.map(Folder.fromMap).toList();
+    return folders.value;
+  }
+
+  static Future<void> createFolders(List<(String name, String color, String kind)> items) async {
+    if (items.isEmpty) return;
+    await sb.from('folders').insert([
+      for (var i = 0; i < items.length; i++) {'name': items[i].$1, 'color': items[i].$2, 'kind': items[i].$3, 'sort': i},
+    ]);
+    await loadFolders();
+  }
+
+  static Future<void> addFolder(String name, String color) async {
+    await sb.from('folders').insert({'name': name, 'color': color, 'sort': folders.value.length});
+    await loadFolders();
+  }
+
+  static Future<void> deleteFolder(String id) async {
+    await sb.from('folders').delete().eq('id', id);
+    await loadFolders();
+  }
+
+  static Future<void> moveToFolder(String recordingId, String? folderId) =>
+      sb.from('recordings').update({'folder_id': folderId, 'suggested_folder_id': null}).eq('id', recordingId);
+
+  static Future<void> saveOnboarding({required List<String> roles, int? grade, required String defaultMode}) =>
+      sb.from('profiles').update({'roles': roles, 'grade': grade, 'default_mode': defaultMode, 'onboarded': true}).eq('id', uid);
 
   // ---------- профиль и словарь ----------
   static Future<Profile> profile() async =>

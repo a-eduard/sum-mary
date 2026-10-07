@@ -42,7 +42,8 @@ def handle(rec):
         tz_rec = rec["recorded_at"].astimezone(tz).replace(tzinfo=None)
         out = pipeline.process_file(src, db.get_vocabulary(rec["user_id"]), profile["llm_provider"],
                                     on_stage=lambda s: db.set_stage(rid, s), mode=rec.get("mode") or "meeting",
-                                    marks=rec.get("marks") or [], recorded_at=tz_rec)
+                                    marks=rec.get("marks") or [], recorded_at=tz_rec,
+                                    folders=[f["name"] for f in db.get_folders(rec["user_id"])])
     db.save_results(rec, out["duration_sec"], out["segments"], out["result"], out["model"])
     try:
         storage.delete(rec["audio_path"])

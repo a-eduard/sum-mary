@@ -5,7 +5,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'config.dart';
 import 'screens/home_screen.dart';
+import 'models.dart';
 import 'screens/login_screen.dart';
+import 'screens/onboarding_screen.dart';
+import 'services/repo.dart';
 import 'theme.dart';
 
 Future<void> main() async {
@@ -51,7 +54,39 @@ class AuthGate extends StatelessWidget {
     final auth = Supabase.instance.client.auth;
     return StreamBuilder<AuthState>(
       stream: auth.onAuthStateChange,
-      builder: (context, _) => auth.currentSession == null ? const LoginScreen() : const HomeScreen(),
+      builder: (context, _) => auth.currentSession == null ? const LoginScreen() : const _SignedIn(),
     );
   }
+}
+
+/// После входа: если роль ещё не выбрана — онбординг, иначе главная.
+class _SignedIn extends StatefulWidget {
+  const _SignedIn();
+  @override
+  State<_SignedIn> createState() => _SignedInState();
+}
+
+class _SignedInState extends State<_SignedIn> {
+  late Future<bool> _onboarded = _load();
+
+  Future<bool> _load() async {
+    Repo.loadFolders().catchError((_) => <Folder>[]);
+    try {
+      return (await Repo.profile()).onboarded;
+    } catch (_) {
+      return true; // нет связи — не мешаем работе
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<bool>(
+        future: _onboarded,
+        builder: (context, snap) {
+          if (!snap.hasData) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          if (snap.data == false) {
+            return OnboardingScreen(onDone: () => setState(() => _onboarded = Future.value(true)));
+          }
+          return const HomeScreen();
+        },
+      );
 }

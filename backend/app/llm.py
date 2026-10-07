@@ -12,9 +12,11 @@ SUMMARY_PROMPT = """Ты — Мари, ИИ-ассистент приложен�
 Запись сделана: {recorded} ({weekday}). Относительные даты («завтра», «в четверг», «через неделю») считай от этой даты.
 {vocab}
 {marks}
+{folders}
 Верни СТРОГО JSON без пояснений, такого вида:
 {{
   "title": "название записи, до 8 слов",
+  "folder": "точное название подходящей полки из списка или null",
   "summary": "краткое резюме, 3–7 предложений, по фактам",
   "key_points": [{{"text": "главная мысль / определение / формула / пример", "kind": "definition|formula|example|important|mistake|note", "t": "мм:сс"}}],
   "sections": [{{"title": "название блока", "items": ["пункт", ...]}}],
@@ -117,7 +119,7 @@ def parse_t(v) -> int | None:
 
 
 def summarize(transcript: str, vocabulary: list[str], provider: str = "deepseek", mode: str = "meeting",
-              marks: list[dict] | None = None, recorded_at=None) -> tuple[dict, str]:
+              marks: list[dict] | None = None, recorded_at=None, folders: list[str] | None = None) -> tuple[dict, str]:
     from datetime import datetime
     vocab = ""
     if vocabulary:
@@ -135,7 +137,11 @@ def summarize(transcript: str, vocabulary: list[str], provider: str = "deepseek"
         marks_text += ("Пользователь отметил «НЕ ПОНЯЛ» в моменты около: "
                        + ", ".join(_fmt_t(int(m.get("t", 0))) for m in unc)
                        + ". Для каждого такого момента добавь пункт в explanations.\n")
-    prompt = SUMMARY_PROMPT.format(mode_name=mode_name, mode_rules=mode_rules, vocab=vocab, marks=marks_text,
+    folders_text = ""
+    if folders:
+        folders_text = ("Полки пользователя (предметы, проекты, клиенты): " + "; ".join(folders)
+                        + ". В поле folder верни название той полки, к которой явно относится запись, иначе null.")
+    prompt = SUMMARY_PROMPT.format(mode_name=mode_name, mode_rules=mode_rules, vocab=vocab, marks=marks_text, folders=folders_text,
                                    recorded=rec.strftime("%Y-%m-%d %H:%M"), weekday=WEEKDAYS[rec.weekday()])
     msgs = [{"role": "system", "content": prompt},
             {"role": "user", "content": "Расшифровка:\n\n" + transcript}]

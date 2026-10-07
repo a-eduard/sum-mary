@@ -6,7 +6,10 @@ import 'package:share_plus/share_plus.dart';
 
 import '../models.dart';
 import '../modes.dart';
+import '../roles.dart';
+import '../widgets/folder_sheet.dart';
 import '../widgets/mari_orb.dart';
+import '../services/calendar.dart';
 import '../services/local_files.dart';
 import '../services/repo.dart';
 import '../theme.dart';
@@ -237,12 +240,14 @@ class _ReadyViewState extends State<_ReadyView> {
                 'share_sum' => Share.share(_summaryText()),
                 'share_tr' => Share.share(_transcriptText()),
                 'rename' => _rename(),
+                'move' => showMoveSheet(context, r),
                 'delete' => _delete(),
                 _ => null,
               },
               itemBuilder: (_) => const [
                 PopupMenuItem(value: 'share_sum', child: Text('Поделиться резюме')),
                 PopupMenuItem(value: 'share_tr', child: Text('Поделиться транскриптом')),
+                PopupMenuItem(value: 'move', child: Text('Положить на полку')),
                 PopupMenuItem(value: 'rename', child: Text('Переименовать')),
                 PopupMenuItem(value: 'delete', child: Text('Удалить')),
               ],
@@ -262,6 +267,15 @@ class _ReadyViewState extends State<_ReadyView> {
                         child: Text(modeById(r.mode).label,
                             style: const TextStyle(color: Color(0xFF0F1015), fontWeight: FontWeight.w700, fontSize: 12)),
                       ),
+                      if (folderById(r.folderId) != null) ...[
+                        const SizedBox(width: 6),
+                        ActionChip(
+                          visualDensity: VisualDensity.compact,
+                          avatar: CircleAvatar(radius: 5, backgroundColor: hexColor(folderById(r.folderId)!.color)),
+                          label: Text(folderById(r.folderId)!.name),
+                          onPressed: () => showMoveSheet(context, r),
+                        ),
+                      ],
                       const SizedBox(width: 10),
                       Text('${DateFormat('d MMM, HH:mm', 'ru').format(r.recordedAt)} · ${fmtDuration(r.durationSec)}',
                           style: TextStyle(color: context.sm.muted, fontSize: 13)),
@@ -279,6 +293,8 @@ class _ReadyViewState extends State<_ReadyView> {
                     _Action(Icons.ios_share_rounded, 'Поделиться', () => Share.share(_summaryText())),
                   ]),
                 ),
+                if (r.folderId == null && folderById(r.suggestedFolderId) != null)
+                  _SuggestBanner(r: r, folder: folderById(r.suggestedFolderId)!),
                 TabBar(
                   labelColor: context.sm.text,
                   unselectedLabelColor: context.sm.muted,
@@ -290,7 +306,7 @@ class _ReadyViewState extends State<_ReadyView> {
                 ),
                 Expanded(
                   child: TabBarView(children: [
-                    _SummaryTab(summary: _summary),
+                    _SummaryTab(summary: _summary, title: r.title, onSeek: hasAudio ? _player.seek : null),
                     _TranscriptTab(r: r, segs: _segs, onTap: hasAudio ? _player.seek : null),
                     _TasksTab(recordingId: r.id),
                   ]),
@@ -298,6 +314,35 @@ class _ReadyViewState extends State<_ReadyView> {
               ]),
         bottomNavigationBar: hasAudio ? AudioPlayerBar(path: r.localAudio!, controller: _player) : null,
       ),
+    );
+  }
+}
+
+class _SuggestBanner extends StatelessWidget {
+  final Recording r;
+  final Folder folder;
+  const _SuggestBanner({required this.r, required this.folder});
+  @override
+  Widget build(BuildContext context) {
+    final s = context.sm;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
+      decoration: BoxDecoration(color: s.card, borderRadius: BorderRadius.circular(18), border: Border.all(color: s.heroBorder)),
+      child: Row(children: [
+        const MariOrb(size: 26, glow: false),
+        const SizedBox(width: 10),
+        Expanded(child: Text('Похоже, это «${folder.name}». Положить туда?', style: TextStyle(color: s.text, fontSize: 14))),
+        TextButton(
+          onPressed: () => Repo.moveToFolder(r.id, folder.id),
+          child: Text('Да', style: TextStyle(color: s.accentText, fontWeight: FontWeight.w800)),
+        ),
+        IconButton(
+          tooltip: 'Нет',
+          onPressed: () => sb.from('recordings').update({'suggested_folder_id': null}).eq('id', r.id),
+          icon: Icon(Icons.close_rounded, color: s.muted, size: 20),
+        ),
+      ]),
     );
   }
 }
@@ -321,7 +366,62 @@ class _Action extends StatelessWidget {
 
 class _SummaryTab extends StatelessWidget {
   final Summary? summary;
-  const _SummaryTab({required this.summary});
+  final String title;
+  final void Function(int ms)? onSeek;
+  const _SummaryTab({required this.summary, required this.title, this.onSeek});
+
+  Widget _time(BuildContext context, int? t) {
+    if (t == null) return const SizedBox.shrink();
+    final s = context.sm;
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: onSeek == null ? null : () => onSeek!(t * 1000),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        child: Text(fmtDuration(t), style: TextStyle(color: s.accentText, fontSize: 12, fontWeight: FontWeight.w700)),
+      ),
+    );
+  }
+
+  Widget _point(BuildContext context, KeyPoint k) {
+    final s = context.sm;
+    Widget body;
+    switch (k.kind) {
+      case 'definition':
+        body = Text(k.text, style: TextStyle(color: s.chip, fontWeight: FontWeight.w700, height: 1.45, fontSize: 15));
+      case 'formula':
+        body = Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(color: s.card, border: Border.all(color: s.text.withValues(alpha: .35)), borderRadius: BorderRadius.circular(12)),
+          child: SelectableText(k.text, style: TextStyle(color: s.text, fontWeight: FontWeight.w700, fontSize: 15)),
+        );
+      case 'example':
+        body = Text(k.text, style: TextStyle(color: s.muted, fontStyle: FontStyle.italic, height: 1.45, fontSize: 15));
+      case 'important':
+        body = Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+              color: s.danger.withValues(alpha: .12), border: Border.all(color: s.danger.withValues(alpha: .35)),
+              borderRadius: BorderRadius.circular(14)),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(Icons.star_rounded, color: s.danger, size: 18),
+            const SizedBox(width: 6),
+            Expanded(child: Text(k.text, style: TextStyle(color: s.danger, fontWeight: FontWeight.w700, height: 1.4))),
+          ]),
+        );
+      case 'mistake':
+        body = Text('Частая ошибка: ${k.text}', style: TextStyle(color: s.success, fontWeight: FontWeight.w600, height: 1.45));
+      default:
+        body = Text(k.text, style: TextStyle(color: s.text, height: 1.45, fontSize: 15));
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Expanded(child: Align(alignment: Alignment.centerLeft, child: body)),
+        _time(context, k.tSec),
+      ]),
+    );
+  }
 
   Widget _section(BuildContext context, String title, List<String> items) => Padding(
         padding: const EdgeInsets.only(top: 20),
@@ -339,12 +439,72 @@ class _SummaryTab extends StatelessWidget {
         ]),
       );
 
+  Widget _event(BuildContext context, EventItem e) {
+    final s = context.sm;
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: s.heroBorder),
+        gradient: LinearGradient(colors: [s.heroStart, s.card], stops: const [0, .8]),
+      ),
+      child: Row(children: [
+        Icon(Icons.event_rounded, color: s.accentText),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(e.title, style: TextStyle(color: s.text, fontWeight: FontWeight.w700, fontSize: 15)),
+            Text(fmtEventDate(e), style: TextStyle(color: s.heroText, fontSize: 13)),
+          ]),
+        ),
+        FilledButton(
+          onPressed: () => CalendarService.add(e, recordingTitle: title),
+          style: FilledButton.styleFrom(minimumSize: const Size(0, 44), padding: const EdgeInsets.symmetric(horizontal: 14)),
+          child: const Text('В календарь'),
+        ),
+      ]),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = summary;
-    if (s == null) return const Center(child: Text('Резюме нет'));
+    final c = context.sm;
+    if (s == null) return const Center(child: Text('Итога нет'));
     return ListView(padding: const EdgeInsets.fromLTRB(20, 16, 20, 24), children: [
-      SelectableText(s.summary, style: TextStyle(fontSize: 16, height: 1.55, color: context.sm.text)),
+      SelectableText(s.summary, style: TextStyle(fontSize: 16, height: 1.55, color: c.text)),
+      for (final e in s.events) _event(context, e),
+      if (s.keyPoints.isNotEmpty) ...[
+        const SizedBox(height: 20),
+        Text('Главное', style: display(14, color: c.muted, weight: FontWeight.w500)),
+        const SizedBox(height: 10),
+        for (final k in s.keyPoints) _point(context, k),
+      ],
+      if (s.explanations.isNotEmpty) ...[
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(color: c.card, borderRadius: BorderRadius.circular(20), border: Border.all(color: c.border)),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Icon(Icons.help_outline_rounded, color: c.accentText, size: 20),
+              const SizedBox(width: 8),
+              Text('Мари объясняет', style: display(14, color: c.text, weight: FontWeight.w500)),
+            ]),
+            for (final x in s.explanations) ...[
+              const SizedBox(height: 12),
+              Row(children: [
+                Expanded(child: Text('${x['topic'] ?? ''}', style: TextStyle(color: c.text, fontWeight: FontWeight.w700))),
+                _time(context, (x['t_sec'] as num?)?.toInt()),
+              ]),
+              const SizedBox(height: 4),
+              Text('${x['answer'] ?? ''}', style: TextStyle(color: c.text, height: 1.45)),
+            ],
+          ]),
+        ),
+      ],
+      for (final (t, items) in s.sections) _section(context, t, items),
       if (s.decisions.isNotEmpty) _section(context, 'Решения', s.decisions),
       if (s.responsibilities.isNotEmpty)
         _section(context, 'Кто за что отвечает', s.responsibilities.map((e) => '${e['person']} — ${e['area']}').toList()),

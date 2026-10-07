@@ -7,10 +7,13 @@ import 'package:intl/intl.dart';
 
 import '../models.dart';
 import '../modes.dart';
+import '../services/calendar.dart';
 import '../services/local_files.dart';
 import '../services/repo.dart';
 import '../theme.dart';
 import '../widgets/mari_orb.dart';
+import '../roles.dart';
+import '../widgets/folder_sheet.dart';
 import '../widgets/recording_tile.dart';
 import 'record_screen.dart';
 import 'recording_screen.dart';
@@ -187,6 +190,18 @@ class TodayPage extends StatefulWidget {
 class _TodayPageState extends State<TodayPage> {
   late final Stream<List<Recording>> _recs = Repo.recordings();
   late final Stream<List<TaskItem>> _tasks = Repo.tasks();
+  late Future<List<EventItem>> _events = Repo.upcomingEvents();
+
+  Future<void> _refresh() async {
+    final f = Repo.upcomingEvents();
+    setState(() => _events = f);
+    await f.catchError((_) => <EventItem>[]);
+  }
+
+  Future<void> _open(String recordingId) async {
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => RecordingScreen(recordingId: recordingId)));
+    if (mounted) _refresh();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -224,7 +239,9 @@ class _TodayPageState extends State<TodayPage> {
           ),
         ),
       ),
-      ListView(padding: const EdgeInsets.fromLTRB(20, 24, 20, 140), children: [
+      RefreshIndicator(
+        onRefresh: _refresh,
+        child: ListView(padding: const EdgeInsets.fromLTRB(20, 24, 20, 140), children: [
         Row(children: [
           const MariOrb(size: 72),
           const SizedBox(width: 16),
@@ -260,17 +277,24 @@ class _TodayPageState extends State<TodayPage> {
           quick('Встреча', () => widget.onRecord('meeting')),
           quick('Звонок', widget.onImportCall),
         ]),
-        StreamBuilder<List<TaskItem>>(
-          stream: _tasks,
-          builder: (context, snap) {
-            final open = (snap.data ?? []).where((t) => !t.done).take(3).toList();
-            if (open.isEmpty) return const SizedBox.shrink();
-            return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              section('Ближайшее'),
-              _HeroTask(task: open.first),
-              for (final t in open.skip(1)) _TaskRow(task: t),
-            ]);
-          },
+        FutureBuilder<List<EventItem>>(
+          future: _events,
+          builder: (context, ev) => StreamBuilder<List<TaskItem>>(
+            stream: _tasks,
+            builder: (context, snap) {
+              final events = (ev.data ?? []).take(2).toList();
+              final open = (snap.data ?? []).where((t) => !t.done).toList()
+                ..sort((a, b) => (a.dueDate ?? DateTime(2100)).compareTo(b.dueDate ?? DateTime(2100)));
+              final tasks = open.take(events.isEmpty ? 3 : 2).toList();
+              if (events.isEmpty && tasks.isEmpty) return const SizedBox.shrink();
+              return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                section('Ближайшее'),
+                for (final e in events) _HeroEvent(event: e, onOpen: () => _open(e.recordingId)),
+                if (events.isEmpty && tasks.isNotEmpty) _HeroTask(task: tasks.first),
+                for (final t in (events.isEmpty ? tasks.skip(1) : tasks)) _TaskRow(task: t),
+              ]);
+            },
+          ),
         ),
         StreamBuilder<List<Recording>>(
           stream: _recs,
@@ -290,14 +314,57 @@ class _TodayPageState extends State<TodayPage> {
                   RecordingTile(
                     r: r,
                     margin: const EdgeInsets.only(bottom: 10),
-                    onTap: () => Navigator.push(
-                        context, MaterialPageRoute(builder: (_) => RecordingScreen(recordingId: r.id))),
+                    onTap: () => _open(r.id),
                   ),
             ]);
           },
         ),
       ]),
+      ),
     ]);
+  }
+}
+
+class _HeroEvent extends StatelessWidget {
+  final EventItem event;
+  final VoidCallback onOpen;
+  const _HeroEvent({required this.event, required this.onOpen});
+  @override
+  Widget build(BuildContext context) {
+    final s = context.sm;
+    final label = switch (event.kind) {
+      'test' => 'Контрольная',
+      'meeting' => 'Встреча',
+      'deadline' => 'Дедлайн',
+      'homework' => 'Домашнее задание',
+      _ => 'Событие',
+    };
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: s.heroBorder),
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [s.heroStart, s.card], stops: const [0, .75]),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('$label · ${fmtEventDate(event)}', style: TextStyle(color: s.heroText, fontSize: 13, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 6),
+        Text(event.title, style: TextStyle(color: s.text, fontSize: 17, fontWeight: FontWeight.w700, height: 1.3)),
+        const SizedBox(height: 12),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          FilledButton(
+            onPressed: () => CalendarService.add(event),
+            style: FilledButton.styleFrom(backgroundColor: s.invBg, foregroundColor: s.invText, minimumSize: const Size(0, 44)),
+            child: const Text('В календарь'),
+          ),
+          TextButton(
+            onPressed: onOpen,
+            child: Text('Открыть запись', style: TextStyle(color: s.accentText, fontWeight: FontWeight.w700)),
+          ),
+        ]),
+      ]),
+    );
   }
 }
 
@@ -429,7 +496,6 @@ class RecordingsPageState extends State<RecordingsPage> {
   @override
   Widget build(BuildContext context) {
     final s = context.sm;
-    final filters = [('all', 'Все'), ('fav', 'Избранное'), for (final m in recModes) (m.id, m.label)];
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(20, 20, 12, 8),
@@ -449,22 +515,45 @@ class RecordingsPageState extends State<RecordingsPage> {
               hintText: 'Поиск по всем записям', prefixIcon: Icon(Icons.search_rounded, color: s.muted), isDense: true),
         ),
       ),
-      SizedBox(
-        height: 52,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-          children: [
-            for (final (k, label) in filters)
-              Padding(
+      ValueListenableBuilder<List<Folder>>(
+        valueListenable: Repo.folders,
+        builder: (context, folders, _) {
+          Widget chip(String k, String label, {Color? dot}) => Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: ChoiceChip(
-                    label: Text(label), selected: _filter == k, showCheckmark: false,
-                    labelStyle: TextStyle(color: _filter == k ? s.onAccent : s.text, fontWeight: FontWeight.w600),
-                    onSelected: (_) => setState(() => _filter = k)),
-              ),
-          ],
-        ),
+                  avatar: dot == null ? null : CircleAvatar(radius: 5, backgroundColor: dot),
+                  label: Text(label),
+                  selected: _filter == k,
+                  showCheckmark: false,
+                  labelStyle: TextStyle(color: _filter == k ? s.onAccent : s.text, fontWeight: FontWeight.w600),
+                  onSelected: (_) => setState(() => _filter = k),
+                ),
+              );
+          return SizedBox(
+            height: 52,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              children: [
+                chip('all', 'Все'),
+                chip('inbox', 'Входящие'),
+                for (final f in folders) chip(f.id, f.name, dot: hexColor(f.color)),
+                chip('fav', 'Избранное'),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: ActionChip(
+                    avatar: Icon(Icons.add_rounded, size: 18, color: s.accentText),
+                    label: const Text('Полка'),
+                    onPressed: () async {
+                      final name = await askFolderName(context);
+                      if (name != null) await Repo.addFolder(name, folderColors[folders.length % folderColors.length]);
+                    },
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
       Expanded(
         child: StreamBuilder<List<Recording>>(
@@ -478,7 +567,8 @@ class RecordingsPageState extends State<RecordingsPage> {
             list = switch (_filter) {
               'all' => list,
               'fav' => list.where((r) => r.favorite).toList(),
-              _ => list.where((r) => r.mode == _filter).toList(),
+              'inbox' => list.where((r) => r.folderId == null).toList(),
+              _ => list.where((r) => r.folderId == _filter).toList(),
             };
             if (list.isEmpty) {
               return Center(
@@ -500,6 +590,7 @@ class RecordingsPageState extends State<RecordingsPage> {
               itemCount: list.length,
               itemBuilder: (_, i) => RecordingTile(
                 r: list[i],
+                onLongPress: () => showMoveSheet(context, list[i]),
                 margin: const EdgeInsets.only(bottom: 10),
                 onTap: () => Navigator.push(
                     context, MaterialPageRoute(builder: (_) => RecordingScreen(recordingId: list[i].id))),

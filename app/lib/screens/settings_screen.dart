@@ -6,6 +6,7 @@ import '../models.dart';
 import '../services/billing.dart';
 import '../services/repo.dart';
 import '../theme.dart';
+import 'onboarding_screen.dart';
 import 'paywall_screen.dart';
 import 'vocabulary_screen.dart';
 
@@ -82,6 +83,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       Card(
         child: Column(children: [
+          ListTile(
+            leading: const Icon(Icons.person_search_rounded),
+            title: const Text('Роль и полки'),
+            subtitle: const Text('Кто вы и какие полки нужны'),
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+                builder: (ctx) => OnboardingScreen(fromSettings: true, onDone: () => Navigator.pop(ctx)))),
+          ),
           ListTile(
             leading: const Icon(Icons.spellcheck),
             title: const Text('Словарь терминов'),
