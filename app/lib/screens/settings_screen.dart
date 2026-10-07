@@ -22,7 +22,33 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   late Future<Profile> _profile = Billing.restore().catchError((_) {}).then((_) => Repo.profile());
 
-  void _reload() => setState(() => _profile = Repo.profile());
+  void _reload() {
+    final f = Repo.profile();
+    setState(() {
+      _profile = f;
+    });
+  }
+
+  void _onMe() {
+    final p = Repo.me.value;
+    if (p != null && mounted) {
+      setState(() {
+        _profile = Future.value(p);
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    Repo.me.addListener(_onMe);
+  }
+
+  @override
+  void dispose() {
+    Repo.me.removeListener(_onMe);
+    super.dispose();
+  }
 
   Future<void> _editName(Profile p) async {
     final name = TextEditingController(text: p.displayName ?? '');
@@ -47,8 +73,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
     if (ok == true && name.text.trim().isNotEmpty) {
-      await Repo.saveName(name.text, aliases.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList());
-      _reload();
+      final m = ScaffoldMessenger.of(context);
+      try {
+        await Repo.saveName(name.text, aliases.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList());
+        m.showSnackBar(const SnackBar(content: Text('Имя сохранено')));
+      } catch (e) {
+        m.showSnackBar(SnackBar(content: Text('Не удалось сохранить: $e')));
+      }
     }
   }
 

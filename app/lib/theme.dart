@@ -110,6 +110,16 @@ ThemeData buildTheme(Brightness b) {
     dialogTheme: DialogThemeData(backgroundColor: s.card, surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24))),
     dividerTheme: DividerThemeData(color: s.border),
+    // Плавающие тосты в стиле приложения, над стеклянной панелью навигации.
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: s.text,
+      contentTextStyle: TextStyle(color: s.bg, fontSize: 15, fontWeight: FontWeight.w600),
+      actionTextColor: s.accent,
+      elevation: 0,
+      insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 104),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    ),
   );
 }
 

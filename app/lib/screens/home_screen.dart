@@ -295,21 +295,27 @@ class _TodayPageState extends State<TodayPage> {
   bool _askName = false;
   final _nameCtrl = TextEditingController();
 
+  void _onMe() {
+    final p = Repo.me.value;
+    if (p == null || !mounted) return;
+    final n = p.displayName?.trim() ?? '';
+    setState(() {
+      _name = n.isEmpty ? null : n;
+      _askName = n.isEmpty;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
-    Repo.profile().then((p) {
-      if (!mounted) return;
-      final n = p.displayName?.trim() ?? '';
-      setState(() {
-        _name = n.isEmpty ? null : n;
-        _askName = n.isEmpty;
-      });
-    }).catchError((_) {});
+    Repo.me.addListener(_onMe);
+    _onMe();
+    Repo.profile().then((_) {}, onError: (_) {});
   }
 
   @override
   void dispose() {
+    Repo.me.removeListener(_onMe);
     _nameCtrl.dispose();
     super.dispose();
   }
@@ -318,11 +324,11 @@ class _TodayPageState extends State<TodayPage> {
     final n = _nameCtrl.text.trim();
     if (n.isEmpty) return;
     FocusScope.of(context).unfocus();
-    await Repo.saveName(n, const []);
-    if (mounted) setState(() {
-      _name = n;
-      _askName = false;
-    });
+    try {
+      await Repo.saveName(n, Repo.me.value?.nameAliases ?? const []);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Не удалось сохранить: $e')));
+    }
   }
 
   Widget _nameCard(Sm s) => Container(
