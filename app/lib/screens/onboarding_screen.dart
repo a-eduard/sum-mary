@@ -91,7 +91,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               physics: const NeverScrollableScrollPhysics(),
               mainAxisSpacing: 10,
               crossAxisSpacing: 10,
-              childAspectRatio: 1.35,
+              childAspectRatio: 1.12,
               children: [
                 for (final r in roles)
                   _RoleCard(
