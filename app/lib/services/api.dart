@@ -26,6 +26,10 @@ class Api {
     return d['answer'] as String;
   }
 
+  /// Пересобрать итог в другом режиме (без повторной расшифровки).
+  static Future<void> resummarize(String recordingId, String mode) =>
+      _post('/resummarize', {'recording_id': recordingId, 'mode': mode});
+
   static Future<void> confirmPurchase(String purchaseId, String productId, {bool sandbox = false}) =>
       _post('/billing/rustore', {'purchase_id': purchaseId, 'product_id': productId, 'sandbox': sandbox});
 }

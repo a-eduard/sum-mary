@@ -172,7 +172,10 @@ void showModeSheet(BuildContext context, {required void Function(String) onPick}
 
 /// Импорт аудиофайлов: записи звонков, диктофон, файлы из мессенджеров.
 Future<void> importAudio(BuildContext context, {bool call = false}) async {
-  final res = await FilePicker.platform.pickFiles(type: FileType.audio, allowMultiple: true);
+  // Аудио и видео (записи Телемоста/Zoom в .mp4) — сервер сам вытащит звук.
+  final res = await FilePicker.platform.pickFiles(type: FileType.custom, allowMultiple: true, allowedExtensions: const [
+    'm4a', 'mp3', 'wav', 'ogg', 'oga', 'opus', 'aac', 'flac', 'amr', '3gp', 'wma', 'mp4', 'mov', 'webm', 'mkv',
+  ]);
   if (res == null) return;
   for (final f in res.files.where((f) => f.path != null)) {
     final copy = await LocalFiles.importCopy(f.path!);

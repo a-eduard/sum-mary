@@ -178,6 +178,7 @@ class Profile {
   final List<String> roles;
   final int? grade;
   final bool onboarded;
+  final bool isAdmin;
   final String defaultMode;
   final String plan;
   final DateTime? planExpiresAt;
@@ -188,6 +189,7 @@ class Profile {
       : roles = List<String>.from(m['roles'] ?? const []),
         grade = m['grade'],
         onboarded = m['onboarded'] ?? false,
+        isAdmin = m['is_admin'] ?? false,
         defaultMode = m['default_mode'] ?? 'meeting',
         plan = m['plan'] ?? 'free',
         planExpiresAt = m['plan_expires_at'] == null ? null : DateTime.parse(m['plan_expires_at']),

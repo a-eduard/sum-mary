@@ -9,12 +9,14 @@ import '../modes.dart';
 import '../roles.dart';
 import '../widgets/folder_sheet.dart';
 import '../widgets/mari_orb.dart';
+import '../services/api.dart';
 import '../services/calendar.dart';
 import '../services/local_files.dart';
 import '../services/repo.dart';
 import '../theme.dart';
 import '../widgets/player.dart';
 import 'chat_screen.dart';
+import 'home_screen.dart' show showModeSheet;
 import 'paywall_screen.dart';
 
 /// Карточка записи: статус обработки или результат (Резюме / Транскрипт / Задачи).
@@ -169,6 +171,17 @@ class _ReadyViewState extends State<_ReadyView> {
     return b.toString();
   }
 
+  void _changeMode() => showModeSheet(context, onPick: (m) async {
+        if (m == r.mode) return;
+        setState(() => _loading = true);
+        try {
+          await Api.resummarize(r.id, m);
+        } catch (e) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Не получилось: $e')));
+        }
+        await _load();
+      });
+
   Future<void> _rename() async {
     final c = TextEditingController(text: r.title);
     final v = await showDialog<String>(
@@ -241,6 +254,7 @@ class _ReadyViewState extends State<_ReadyView> {
                 'share_tr' => Share.share(_transcriptText()),
                 'rename' => _rename(),
                 'move' => showMoveSheet(context, r),
+                'mode' => _changeMode(),
                 'delete' => _delete(),
                 _ => null,
               },
@@ -248,6 +262,7 @@ class _ReadyViewState extends State<_ReadyView> {
                 PopupMenuItem(value: 'share_sum', child: Text('Поделиться резюме')),
                 PopupMenuItem(value: 'share_tr', child: Text('Поделиться транскриптом')),
                 PopupMenuItem(value: 'move', child: Text('Положить на полку')),
+                PopupMenuItem(value: 'mode', child: Text('Сменить тип записи')),
                 PopupMenuItem(value: 'rename', child: Text('Переименовать')),
                 PopupMenuItem(value: 'delete', child: Text('Удалить')),
               ],

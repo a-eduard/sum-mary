@@ -42,9 +42,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     value: (p.minutesUsed / p.effectiveLimit).clamp(0, 1).toDouble(),
                     minHeight: 8, borderRadius: BorderRadius.circular(4)),
                 const SizedBox(height: 8),
-                Text('Использовано ${p.minutesUsed} из ${p.effectiveLimit} мин в этом месяце',
+                Text(p.isAdmin ? 'Режим тестировщика: без лимита (использовано ${p.minutesUsed} мин)'
+                    : 'Использовано ${p.minutesUsed} из ${p.effectiveLimit} мин в этом месяце',
                     style: TextStyle(color: context.sm.muted)),
-                if (!p.isPro) ...[
+                if (p.isAdmin) ...[
+                  const SizedBox(height: 12),
+                  Wrap(spacing: 8, runSpacing: 8, children: [
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.swap_horiz_rounded, size: 18),
+                      label: const Text('Сменить роль'),
+                      onPressed: () => Navigator.push(context, MaterialPageRoute(
+                          builder: (ctx) => OnboardingScreen(fromSettings: true, onDone: () => Navigator.pop(ctx)))),
+                    ),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.restart_alt_rounded, size: 18),
+                      label: const Text('Показать знакомство заново'),
+                      onPressed: () async {
+                        await sb.from('profiles').update({'onboarded': false}).eq('id', Repo.uid);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Перезапустите приложение — откроется выбор роли')));
+                        }
+                      },
+                    ),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.workspace_premium_rounded, size: 18),
+                      label: const Text('Экран подписки'),
+                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PaywallScreen())),
+                    ),
+                  ]),
+                ],
+                if (!p.isPro && !p.isAdmin) ...[
                   const SizedBox(height: 12),
                   FilledButton(
                     onPressed: () async {
