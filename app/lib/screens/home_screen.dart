@@ -255,7 +255,7 @@ Future<void> importAudio(BuildContext context, {bool call = false, String? mode,
   for (final f in res.files.where((f) => f.path != null)) {
     final copy = await LocalFiles.importCopy(f.path!);
     final id = await Repo.createRecording(
-        source: call ? 'call' : 'import', mode: mode ?? (call ? 'call' : 'meeting'), folderId: folderId, localPath: copy.path);
+        source: call ? 'call' : 'import', mode: mode ?? (call ? 'call' : 'auto'), folderId: folderId, localPath: copy.path);
     Repo.uploadAndQueue(id, File(copy.path)).catchError((_) {});
   }
   if (context.mounted) {

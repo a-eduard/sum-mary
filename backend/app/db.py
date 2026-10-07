@@ -146,7 +146,7 @@ def get_segments(rec_id) -> list[dict]:
                          (rec_id,)).fetchall()
 
 
-def save_results(rec, duration_sec: int, segments: list[dict], result: dict, model: str):
+def save_results(rec, duration_sec: int, segments: list[dict], result: dict, model: str, mode: str | None = None):
     """Сохраняет транскрипт, резюме и задачи одной транзакцией."""
     rid, uid = rec["id"], rec["user_id"]
     with conn() as c:
@@ -162,8 +162,8 @@ def save_results(rec, duration_sec: int, segments: list[dict], result: dict, mod
         keep_title = rec.get("title") and rec["title"] != "Новая запись"
         c.execute(
             "update public.recordings set duration_sec=%s, audio_path=null, status='ready', stage=null, "
-            "processed_at=now(), title=%s where id=%s",
-            (duration_sec, rec["title"] if keep_title or not title else title, rid),
+            "processed_at=now(), title=%s, mode=coalesce(%s, mode) where id=%s",
+            (duration_sec, rec["title"] if keep_title or not title else title, mode, rid),
         )
         c.execute("update public.profiles set seconds_used = seconds_used + %s where id=%s", (duration_sec, uid))
         c.commit()

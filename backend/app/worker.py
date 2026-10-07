@@ -51,7 +51,7 @@ def handle(rec):
                                     marks=rec.get("marks") or [], recorded_at=tz_rec,
                                     folders=[f["name"] for f in db.get_folders(rec["user_id"])],
                                     user_names=user_names(profile))
-    db.save_results(rec, out["duration_sec"], out["segments"], out["result"], out["model"])
+    db.save_results(rec, out["duration_sec"], out["segments"], out["result"], out["model"], mode=out.get("mode"))
     try:
         storage.delete(rec["audio_path"])
     except Exception:

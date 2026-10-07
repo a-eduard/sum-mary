@@ -20,4 +20,7 @@ const recModes = [
   RecMode('tutor', 'Репетитор', Icons.person_rounded, Color(0xFF6A7BFF)),
 ];
 
-RecMode modeById(String? id) => recModes.firstWhere((m) => m.id == id, orElse: () => recModes[3]);
+/// Тип ещё не определён (загруженный файл) — Мари определит сама.
+const autoMode = RecMode('auto', 'Запись', Icons.graphic_eq_rounded, Color(0xFF7A8CA3));
+
+RecMode modeById(String? id) => id == 'auto' ? autoMode : recModes.firstWhere((m) => m.id == id, orElse: () => recModes[3]);

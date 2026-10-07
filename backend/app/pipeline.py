@@ -28,6 +28,8 @@ def process_file(path: str, vocabulary: list[str] | None = None, provider: str =
         log.info("speakers: %d", len({s["speaker"] for s in segs}))
 
     on_stage("summarizing")
+    if segs and mode == "auto":
+        mode = llm.detect_mode(llm.format_transcript(segs), provider)
     if segs:
         result, model = llm.summarize(llm.format_transcript(segs), vocabulary or [], provider,
                                       mode=mode, marks=marks, recorded_at=recorded_at, folders=folders,
@@ -35,4 +37,5 @@ def process_file(path: str, vocabulary: list[str] | None = None, provider: str =
         segs = llm.apply_term_fixes(segs, result.get("term_fixes", []))
     else:
         result, model = {"title": "Пустая запись", "summary": "В записи не найдено речи.", "tasks": []}, "-"
-    return {"duration_sec": dur, "segments": segs, "result": result, "model": model}
+    return {"duration_sec": dur, "segments": segs, "result": result, "model": model,
+            "mode": mode if mode != "auto" else "meeting"}

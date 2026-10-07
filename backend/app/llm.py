@@ -111,6 +111,20 @@ def prepare(kind: str, materials: str, n: int = 10, tickets: str = "", provider:
     return [i for i in items if isinstance(i, dict)]
 
 
+def detect_mode(transcript: str, provider: str = "deepseek") -> str:
+    """Для загруженных файлов: угадать тип записи по началу расшифровки."""
+    opts = ", ".join(f"{k} — {v[0]}" for k, v in MODES.items())
+    msgs = [{"role": "system", "content": f"Определи тип записи по фрагменту расшифровки. Варианты: {opts}. "
+                                          "Ответь одним словом — ключом из списка."},
+            {"role": "user", "content": transcript[:4000]}]
+    try:
+        text, _ = _call(msgs, provider, max_tokens=10)
+        key = text.strip().lower().strip(".\"' ")
+        return key if key in MODES else "meeting"
+    except Exception:
+        return "meeting"
+
+
 def _call(messages, provider: str, json_mode: bool = False, max_tokens: int = 4000) -> tuple[str, str]:
     if provider == "yandex" and config.YC_LLM_API_KEY:
         model = f"gpt://{config.YC_FOLDER_ID}/{config.YC_LLM_MODEL}"
