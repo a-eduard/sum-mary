@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -11,19 +12,40 @@ SupabaseClient get sb => Supabase.instance.client;
 class Repo {
   static String get uid => sb.auth.currentUser!.id;
 
+  /// Живой поток, который сам восстанавливается: после сна телефона, смены сети или VPN
+  /// токен мог истечь — обновляем сессию и переподписываемся, не показывая ошибку.
+  static Stream<T> _live<T>(Stream<T> Function() make) async* {
+    var delay = 1;
+    while (true) {
+      try {
+        await for (final v in make()) {
+          delay = 1;
+          yield v;
+        }
+        return;
+      } catch (_) {
+        try {
+          await sb.auth.refreshSession();
+        } catch (_) {}
+        await Future.delayed(Duration(seconds: delay));
+        delay = delay >= 16 ? 30 : delay * 2;
+      }
+    }
+  }
+
   // ---------- записи ----------
-  static Stream<List<Recording>> recordings() => sb
+  static Stream<List<Recording>> recordings() => _live(() => sb
       .from('recordings')
       .stream(primaryKey: ['id'])
       .eq('user_id', uid)
       .order('recorded_at', ascending: false)
-      .map((rows) => rows.where((r) => r['deleted_at'] == null).map(Recording.fromMap).toList());
+      .map((rows) => rows.where((r) => r['deleted_at'] == null).map(Recording.fromMap).toList()));
 
-  static Stream<Recording?> recording(String id) => sb
+  static Stream<Recording?> recording(String id) => _live(() => sb
       .from('recordings')
       .stream(primaryKey: ['id'])
       .eq('id', id)
-      .map((rows) => rows.isEmpty ? null : Recording.fromMap(rows.first));
+      .map((rows) => rows.isEmpty ? null : Recording.fromMap(rows.first)));
 
   static Future<List<Recording>> search(String q) async {
     final rows = await sb.rpc('search_recordings', params: {'q': q});
@@ -75,12 +97,12 @@ class Repo {
   }
 
   // ---------- задачи ----------
-  static Stream<List<TaskItem>> tasks() => sb
+  static Stream<List<TaskItem>> tasks() => _live(() => sb
       .from('tasks')
       .stream(primaryKey: ['id'])
       .eq('user_id', uid)
       .order('created_at', ascending: false)
-      .map((rows) => rows.map(TaskItem.fromMap).toList());
+      .map((rows) => rows.map(TaskItem.fromMap).toList()));
 
   static Future<void> setTaskDone(String id, bool done) => sb.from('tasks').update({'done': done}).eq('id', id);
   static Future<void> addTask(String text, {String? recordingId}) =>
