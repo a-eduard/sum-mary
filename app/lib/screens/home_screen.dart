@@ -291,6 +291,65 @@ class _TodayPageState extends State<TodayPage> {
   late final Stream<List<Recording>> _recs = Repo.recordings();
   late final Stream<List<TaskItem>> _tasks = Repo.tasks();
   late Future<List<EventItem>> _events = Repo.upcomingEvents();
+  String? _name;
+  bool _askName = false;
+  final _nameCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    Repo.profile().then((p) {
+      if (!mounted) return;
+      final n = p.displayName?.trim() ?? '';
+      setState(() {
+        _name = n.isEmpty ? null : n;
+        _askName = n.isEmpty;
+      });
+    }).catchError((_) {});
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveName() async {
+    final n = _nameCtrl.text.trim();
+    if (n.isEmpty) return;
+    FocusScope.of(context).unfocus();
+    await Repo.saveName(n, const []);
+    if (mounted) setState(() {
+      _name = n;
+      _askName = false;
+    });
+  }
+
+  Widget _nameCard(Sm s) => Container(
+        margin: const EdgeInsets.only(top: 16),
+        padding: const EdgeInsets.fromLTRB(16, 14, 10, 14),
+        decoration: BoxDecoration(color: s.card, borderRadius: BorderRadius.circular(20), border: Border.all(color: s.heroBorder)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Как вас зовут?', style: display(16, color: s.text)),
+          const SizedBox(height: 4),
+          Text('Мари будет обращаться по имени и узнавать в записях задачи, которые дают именно вам.',
+              style: TextStyle(color: s.muted, fontSize: 13, height: 1.35)),
+          const SizedBox(height: 10),
+          Row(children: [
+            Expanded(
+              child: TextField(
+                controller: _nameCtrl,
+                textCapitalization: TextCapitalization.words,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _saveName(),
+                decoration: const InputDecoration(hintText: 'Имя', isDense: true),
+              ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(onPressed: _saveName, child: const Text('Готово')),
+          ]),
+        ]),
+      );
 
   Future<void> _refresh() async {
     final f = Repo.upcomingEvents();
@@ -349,10 +408,16 @@ class _TodayPageState extends State<TodayPage> {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(date, style: TextStyle(color: s.muted, fontSize: 14)),
               const SizedBox(height: 4),
-              Text(_greeting(), style: display(22, color: s.text)),
+              Text(_name == null ? _greeting() : '${_greeting()},\n$_name', style: display(22, color: s.text)),
             ]),
           ),
         ]),
+        // Слот всегда на месте: если вставлять/убирать виджет, индексы детей ListView
+        // сдвигаются и StreamBuilder'ы ниже переподписываются на одноразовый поток.
+        AnimatedSize(
+          duration: const Duration(milliseconds: 250),
+          child: _askName ? _nameCard(s) : const SizedBox(width: double.infinity),
+        ),
         const SizedBox(height: 18),
         Material(
           color: s.card,
@@ -551,8 +616,11 @@ class _TaskRow extends StatelessWidget {
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(task.text, maxLines: 2, overflow: TextOverflow.ellipsis,
                       style: TextStyle(color: s.text, fontWeight: FontWeight.w700, fontSize: 15)),
-                  if (task.dueText != null || task.assignee != null)
-                    Text([if (task.assignee != null) task.assignee!, if (task.dueText != null) task.dueText!].join(' · '),
+                  if (task.dueText != null || task.assignee != null || task.forMe)
+                    Text([
+                      if (task.forMe) 'Вам' else if (task.assignee != null) task.assignee!,
+                      if (task.dueText != null) task.dueText!,
+                    ].join(' · '),
                         style: TextStyle(color: s.muted, fontSize: 13)),
                 ]),
               ),
