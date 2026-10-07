@@ -33,3 +33,13 @@ AUDIO_BUCKET = _env("AUDIO_BUCKET", "audio")
 PACKAGE_NAME = _env("PACKAGE_NAME", "ru.summary.app")
 RUSTORE_KEY_ID = _env("RUSTORE_KEY_ID")
 RUSTORE_PRIVATE_KEY = _env("RUSTORE_PRIVATE_KEY")
+
+# Поддержка: Telegram-бот владельцу + ответ пользователю на почту
+TG_BOT_TOKEN = _env("TG_BOT_TOKEN")
+TG_ADMIN_CHAT_ID = _env("TG_ADMIN_CHAT_ID")
+TG_WEBHOOK_SECRET = _env("TG_WEBHOOK_SECRET")
+SMTP_HOST = _env("SMTP_HOST", "smtp.beget.com")
+SMTP_PORT = int(_env("SMTP_PORT", "465"))
+SMTP_USER = _env("SMTP_USER", "noreply@sum-mary.ru")
+SMTP_PASS = _env("SMTP_PASS")
+SUPPORT_EMAIL = _env("SUPPORT_EMAIL", "info@sum-mary.ru")

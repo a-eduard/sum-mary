@@ -31,6 +31,43 @@ def health():
     return {"ok": True}
 
 
+# ---------- поддержка ----------
+class SupportIn(BaseModel):
+    text: str
+    app_version: str | None = None
+    device: str | None = None
+
+
+@app.post("/support")
+def support_send(body: SupportIn, user_id: str = Depends(current_user)):
+    from . import support
+    text = body.text.strip()
+    if not text:
+        raise HTTPException(400, "Пустое сообщение")
+    with db.conn() as c:
+        n = c.execute("select count(*) as n from public.support_messages where user_id=%s and direction='in' "
+                      "and created_at > now() - interval '1 hour'", (user_id,)).fetchone()["n"]
+    if n >= 20:
+        raise HTTPException(429, "Слишком много сообщений. Мы уже читаем предыдущие — ответим скоро.")
+    return support.submit(user_id, text, {"app_version": body.app_version, "device": body.device})
+
+
+@app.post("/tg/{secret}")
+def tg_webhook(secret: str, update: dict,
+               x_telegram_bot_api_secret_token: str | None = Header(None)):
+    from . import support
+    ok = config.TG_WEBHOOK_SECRET and secret == config.TG_WEBHOOK_SECRET \
+        and x_telegram_bot_api_secret_token == config.TG_WEBHOOK_SECRET
+    if not ok:
+        raise HTTPException(404)
+    try:
+        support.handle_update(update)
+    except Exception:
+        import logging
+        logging.getLogger("support").exception("tg update failed")
+    return {"ok": True}  # всегда 200, иначе Telegram будет слать повторно
+
+
 @app.post("/chat")
 def chat(body: ChatIn, user_id: str = Depends(current_user)):
     if not body.question.strip():
