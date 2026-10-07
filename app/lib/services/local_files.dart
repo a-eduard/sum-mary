@@ -23,3 +23,12 @@ class LocalFiles {
 
   static bool exists(String? path) => path != null && File(path).existsSync();
 }
+
+extension LocalPhotos on LocalFiles {
+  /// Сохраняет фото доски рядом с записями.
+  static Future<String> savePhoto(String src) async {
+    final dst = p.join((await LocalFiles.dir()).path, 'photo_${DateTime.now().millisecondsSinceEpoch}${p.extension(src).isEmpty ? '.jpg' : p.extension(src)}');
+    await File(src).copy(dst);
+    return dst;
+  }
+}

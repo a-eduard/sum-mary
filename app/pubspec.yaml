@@ -23,6 +23,9 @@ dependencies:
   intl: any
   url_launcher: ^6.3.0
   flutter_rustore_pay: ^11.1.1
+  google_fonts: ^6.2.1
+  shared_preferences: ^2.3.2
+  image_picker: ^1.1.2
 
 dev_dependencies:
   flutter_test:

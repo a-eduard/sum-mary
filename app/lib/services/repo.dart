@@ -30,11 +30,14 @@ class Repo {
     return (rows as List).map((r) => Recording.fromMap(Map<String, dynamic>.from(r))).toList();
   }
 
-  static Future<String> createRecording({required String source, required String localPath, int? durationSec}) async {
+  static Future<String> createRecording(
+      {required String source, required String localPath, String mode = 'meeting', int? durationSec, List<Map<String, dynamic>> marks = const []}) async {
     final row = await sb
         .from('recordings')
         .insert({
           'source': source,
+          'mode': mode,
+          'marks': marks,
           'local_audio': localPath,
           'duration_sec': durationSec,
           'status': 'uploading',

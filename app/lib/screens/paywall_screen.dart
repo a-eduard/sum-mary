@@ -54,12 +54,12 @@ class _PaywallScreenState extends State<PaywallScreen> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.card,
+          color: context.sm.card,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: sel ? AppColors.accent : Colors.transparent, width: 2),
+          border: Border.all(color: sel ? context.sm.accent : Colors.transparent, width: 2),
         ),
         child: Row(children: [
-          Icon(sel ? Icons.radio_button_checked : Icons.radio_button_off, color: AppColors.accent),
+          Icon(sel ? Icons.radio_button_checked : Icons.radio_button_off, color: context.sm.accent),
           const SizedBox(width: 12),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -74,7 +74,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                   ),
                 ],
               ]),
-              Text(note, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+              Text(note, style: TextStyle(color: context.sm.muted, fontSize: 13)),
             ]),
           ),
           Text(_prices[id] ?? fallbackPrice, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -95,12 +95,12 @@ class _PaywallScreenState extends State<PaywallScreen> {
     return Scaffold(
       appBar: AppBar(),
       body: ListView(padding: const EdgeInsets.all(24), children: [
-        const Icon(Icons.workspace_premium, size: 64, color: AppColors.accent),
+        Icon(Icons.workspace_premium, size: 64, color: context.sm.accent),
         const SizedBox(height: 12),
         const Text('СамМари Pro', textAlign: TextAlign.center, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
         const SizedBox(height: 16),
         for (final (icon, text) in features)
-          ListTile(dense: true, leading: Icon(icon, color: AppColors.accent), title: Text(text)),
+          ListTile(dense: true, leading: Icon(icon, color: context.sm.accent), title: Text(text)),
         const SizedBox(height: 16),
         if (_loading)
           const Center(child: CircularProgressIndicator())
@@ -118,8 +118,8 @@ class _PaywallScreenState extends State<PaywallScreen> {
             child: _busy ? const CircularProgressIndicator() : const Text('Оформить подписку'),
           ),
           const SizedBox(height: 8),
-          const Text('Подписка продлевается автоматически. Отменить можно в RuStore → Профиль → Подписки.',
-              textAlign: TextAlign.center, style: TextStyle(color: AppColors.muted, fontSize: 12)),
+          Text('Подписка продлевается автоматически. Отменить можно в RuStore → Профиль → Подписки.',
+              textAlign: TextAlign.center, style: TextStyle(color: context.sm.muted, fontSize: 12)),
         ],
       ]),
     );

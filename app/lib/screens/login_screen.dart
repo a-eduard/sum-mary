@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../config.dart';
 import '../theme.dart';
+import '../widgets/mari_orb.dart';
 
 /// Вход по email: отправляем 6-значный код, пользователь вводит его.
 class LoginScreen extends StatefulWidget {
@@ -64,13 +65,12 @@ class _LoginScreenState extends State<LoginScreen> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 420),
               child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                const Icon(Icons.graphic_eq, size: 64, color: AppColors.accent),
-                const SizedBox(height: 12),
-                const Text('СамМари', textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
+                const Center(child: MariOrb(size: 110)),
+                const SizedBox(height: 28),
+                Text('СамМари', textAlign: TextAlign.center, style: display(30, color: context.sm.text)),
                 const SizedBox(height: 8),
-                const Text('Мари запишет встречу, звонок или лекцию,\nрасшифрует и выделит главное',
-                    textAlign: TextAlign.center, style: TextStyle(color: AppColors.muted)),
+                Text('Мари запишет встречу, звонок или лекцию,\nрасшифрует и выделит главное',
+                    textAlign: TextAlign.center, style: TextStyle(color: context.sm.muted)),
                 const SizedBox(height: 32),
                 TextField(
                   controller: _email,
@@ -110,8 +110,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 24),
                 TextButton(
                   onPressed: () => launchUrl(Uri.parse(AppConfig.privacyUrl)),
-                  child: const Text('Продолжая, вы принимаете политику конфиденциальности',
-                      textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: AppColors.muted)),
+                  child: Text('Продолжая, вы принимаете политику конфиденциальности',
+                      textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: context.sm.muted)),
                 ),
               ]),
             ),

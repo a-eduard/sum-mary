@@ -19,9 +19,9 @@ class _TasksScreenState extends State<TasksScreen> {
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Padding(
-        padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-        child: Text('Задачи', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 16, 12),
+        child: Text('Задачи', style: display(24, color: context.sm.text)),
       ),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -38,10 +38,10 @@ class _TasksScreenState extends State<TasksScreen> {
             if (!snap.hasData) return const Center(child: CircularProgressIndicator());
             final list = snap.data!.where((t) => t.done == _showDone).toList();
             if (list.isEmpty) {
-              return const Center(child: Text('Задачи из ваших записей появятся здесь', style: TextStyle(color: AppColors.muted)));
+              return Center(child: Text('Задачи из ваших записей появятся здесь', style: TextStyle(color: context.sm.muted)));
             }
             return ListView.builder(
-              padding: const EdgeInsets.only(top: 8, bottom: 100),
+              padding: const EdgeInsets.only(top: 8, bottom: 140),
               itemCount: list.length,
               itemBuilder: (_, i) {
                 final t = list[i];
@@ -58,7 +58,7 @@ class _TasksScreenState extends State<TasksScreen> {
                       onChanged: (v) => Repo.setTaskDone(t.id, v ?? false),
                       title: Text(t.text),
                       subtitle: Text([if (t.assignee != null) t.assignee!, if (t.dueText != null) 'срок: ${t.dueText}'].join(' · '),
-                          style: const TextStyle(color: AppColors.muted)),
+                          style: TextStyle(color: context.sm.muted)),
                       secondary: t.recordingId == null ? null : IconButton(
                         icon: const Icon(Icons.open_in_new, size: 20),
                         onPressed: () => Navigator.push(context,

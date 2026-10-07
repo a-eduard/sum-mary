@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../models.dart';
+import '../modes.dart';
+import '../widgets/mari_orb.dart';
 import '../services/local_files.dart';
 import '../services/repo.dart';
 import '../theme.dart';
@@ -57,19 +59,21 @@ class _ProcessingView extends StatelessWidget {
     final transcribed = r.status == 'processing' && stage == 'summarizing';
     Widget step(String title, bool done, bool active) => Card(
           child: ListTile(
-            title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+            title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
             subtitle: Padding(
               padding: const EdgeInsets.only(top: 10),
               child: LinearProgressIndicator(
                 value: done ? 1 : (active ? null : 0),
                 minHeight: 6,
+                color: context.sm.accent,
+                backgroundColor: context.sm.border,
                 borderRadius: BorderRadius.circular(3),
               ),
             ),
           ),
         );
     return Scaffold(
-      appBar: AppBar(title: Text(r.title)),
+      appBar: AppBar(title: Text(r.title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17))),
       body: ListView(padding: const EdgeInsets.symmetric(vertical: 16), children: [
         if (r.status == 'error' || r.status == 'limit_exceeded')
           Card(
@@ -95,11 +99,14 @@ class _ProcessingView extends StatelessWidget {
             ),
           )
         else ...[
-          const Card(
-            child: ListTile(
-              leading: Icon(Icons.info_outline, color: AppColors.accent),
-              title: Text('Можно выйти из приложения — Мари продолжит работу, а результат появится здесь.'),
-            ),
+          const SizedBox(height: 12),
+          const Center(child: MariOrb(size: 140)),
+          const SizedBox(height: 24),
+          Center(child: Text('Мари разбирает запись', style: display(20, color: context.sm.text))),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(32, 8, 32, 20),
+            child: Text('Можно выйти из приложения — результат появится здесь, а мы пришлём уведомление.',
+                textAlign: TextAlign.center, style: TextStyle(color: context.sm.muted, height: 1.4)),
           ),
           step('Загрузка аудио', uploaded, !uploaded),
           step('Расшифровка и спикеры', transcribed, r.status == 'processing' && !transcribed),
@@ -246,24 +253,41 @@ class _ReadyViewState extends State<_ReadyView> {
             ? const Center(child: CircularProgressIndicator())
             : Column(children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(r.title, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
-                    Text('${DateFormat('d MMMM y, HH:mm', 'ru').format(r.recordedAt)} · ${fmtDuration(r.durationSec)}',
-                        style: const TextStyle(color: AppColors.muted)),
+                    Row(children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+                        decoration: BoxDecoration(color: modeById(r.mode).color, borderRadius: BorderRadius.circular(99)),
+                        child: Text(modeById(r.mode).label,
+                            style: const TextStyle(color: Color(0xFF0F1015), fontWeight: FontWeight.w700, fontSize: 12)),
+                      ),
+                      const SizedBox(width: 10),
+                      Text('${DateFormat('d MMM, HH:mm', 'ru').format(r.recordedAt)} · ${fmtDuration(r.durationSec)}',
+                          style: TextStyle(color: context.sm.muted, fontSize: 13)),
+                    ]),
+                    const SizedBox(height: 10),
+                    Text(r.title, style: display(21, color: context.sm.text)),
                   ]),
                 ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                  child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-                    _Action(Icons.chat_bubble_outline, 'Спросить Мари', () => Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => ChatScreen(recording: r)))),
-                    _Action(Icons.people_outline, 'Спикеры', _speakers),
-                    _Action(Icons.ios_share, 'Поделиться', () => Share.share(_summaryText())),
+                SizedBox(
+                  height: 60,
+                  child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), children: [
+                    _Action(Icons.chat_bubble_outline_rounded, 'Спросить Мари', () => Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => ChatScreen(recording: r))), primary: true),
+                    _Action(Icons.people_outline_rounded, 'Спикеры', _speakers),
+                    _Action(Icons.ios_share_rounded, 'Поделиться', () => Share.share(_summaryText())),
                   ]),
                 ),
-                const TabBar(tabs: [Tab(text: 'Резюме'), Tab(text: 'Транскрипт'), Tab(text: 'Задачи')]),
+                TabBar(
+                  labelColor: context.sm.text,
+                  unselectedLabelColor: context.sm.muted,
+                  indicatorColor: context.sm.accent,
+                  indicatorWeight: 2.5,
+                  dividerColor: context.sm.border,
+                  labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                  tabs: const [Tab(text: 'Итог'), Tab(text: 'Текст'), Tab(text: 'Задачи')],
+                ),
                 Expanded(
                   child: TabBarView(children: [
                     _SummaryTab(summary: _summary),
@@ -282,19 +306,16 @@ class _Action extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  const _Action(this.icon, this.label, this.onTap);
+  final bool primary;
+  const _Action(this.icon, this.label, this.onTap, {this.primary = false});
   @override
-  Widget build(BuildContext context) => InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Column(children: [
-            Icon(icon, color: AppColors.accent),
-            const SizedBox(height: 4),
-            Text(label, style: const TextStyle(fontSize: 12)),
-          ]),
-        ),
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: primary
+            ? FilledButton.icon(onPressed: onTap, icon: Icon(icon, size: 18), label: Text(label),
+                style: FilledButton.styleFrom(minimumSize: const Size(0, 44), padding: const EdgeInsets.symmetric(horizontal: 16)))
+            : OutlinedButton.icon(onPressed: onTap, icon: Icon(icon, size: 18), label: Text(label),
+                style: OutlinedButton.styleFrom(minimumSize: const Size(0, 44), padding: const EdgeInsets.symmetric(horizontal: 16))),
       );
 }
 
@@ -302,16 +323,16 @@ class _SummaryTab extends StatelessWidget {
   final Summary? summary;
   const _SummaryTab({required this.summary});
 
-  Widget _section(String title, List<String> items) => Padding(
+  Widget _section(BuildContext context, String title, List<String> items) => Padding(
         padding: const EdgeInsets.only(top: 20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+          Text(title, style: display(14, color: context.sm.muted, weight: FontWeight.w500)),
           const SizedBox(height: 8),
           for (final i in items)
             Padding(
               padding: const EdgeInsets.only(bottom: 6),
               child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('•  ', style: TextStyle(color: AppColors.accent)),
+                Text('•  ', style: TextStyle(color: context.sm.accent)),
                 Expanded(child: Text(i, style: const TextStyle(height: 1.4))),
               ]),
             ),
@@ -322,12 +343,12 @@ class _SummaryTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = summary;
     if (s == null) return const Center(child: Text('Резюме нет'));
-    return ListView(padding: const EdgeInsets.all(16), children: [
-      SelectableText(s.summary, style: const TextStyle(fontSize: 16, height: 1.5)),
-      if (s.decisions.isNotEmpty) _section('Решения', s.decisions),
+    return ListView(padding: const EdgeInsets.fromLTRB(20, 16, 20, 24), children: [
+      SelectableText(s.summary, style: TextStyle(fontSize: 16, height: 1.55, color: context.sm.text)),
+      if (s.decisions.isNotEmpty) _section(context, 'Решения', s.decisions),
       if (s.responsibilities.isNotEmpty)
-        _section('Кто за что отвечает', s.responsibilities.map((e) => '${e['person']} — ${e['area']}').toList()),
-      if (s.openQuestions.isNotEmpty) _section('Открытые вопросы', s.openQuestions),
+        _section(context, 'Кто за что отвечает', s.responsibilities.map((e) => '${e['person']} — ${e['area']}').toList()),
+      if (s.openQuestions.isNotEmpty) _section(context, 'Открытые вопросы', s.openQuestions),
     ]);
   }
 }
@@ -362,7 +383,7 @@ class _TranscriptTab extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(r.speakerName(t.speaker), style: TextStyle(color: c, fontWeight: FontWeight.w600)),
                 const Spacer(),
-                Text(fmtMs(t.startMs), style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+                Text(fmtMs(t.startMs), style: TextStyle(color: context.sm.muted, fontSize: 12)),
               ]),
               const SizedBox(height: 4),
               Text(t.text, style: const TextStyle(height: 1.45)),

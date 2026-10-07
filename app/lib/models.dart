@@ -2,6 +2,7 @@ class Recording {
   final String id;
   final String title;
   final String source;
+  final String mode;
   final String status;
   final String? stage;
   final String? error;
@@ -16,6 +17,7 @@ class Recording {
       : id = m['id'],
         title = m['title'] ?? 'Новая запись',
         source = m['source'] ?? 'mic',
+        mode = m['mode'] ?? (m['source'] == 'call' ? 'call' : 'meeting'),
         status = m['status'] ?? 'uploading',
         stage = m['stage'],
         error = m['error'],

@@ -57,7 +57,7 @@ class _ChatScreenState extends State<ChatScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Мари'), bottom: PreferredSize(
         preferredSize: const Size.fromHeight(20),
-        child: Text(widget.recording.title, style: const TextStyle(color: AppColors.muted), overflow: TextOverflow.ellipsis),
+        child: Text(widget.recording.title, style: TextStyle(color: context.sm.muted), overflow: TextOverflow.ellipsis),
       )),
       body: Column(children: [
         Expanded(
@@ -76,8 +76,8 @@ class _ChatScreenState extends State<ChatScreen> {
                   itemCount: _msgs.length + (_busy ? 1 : 0),
                   itemBuilder: (_, i) {
                     if (i == _msgs.length) {
-                      return const Align(alignment: Alignment.centerLeft,
-                          child: Padding(padding: EdgeInsets.all(12), child: Text('Мари думает…', style: TextStyle(color: AppColors.muted))));
+                      return Align(alignment: Alignment.centerLeft,
+                          child: Padding(padding: EdgeInsets.all(12), child: Text('Мари думает…', style: TextStyle(color: context.sm.muted))));
                     }
                     final m = _msgs[i];
                     final me = m['role'] == 'user';
@@ -88,7 +88,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         margin: const EdgeInsets.symmetric(vertical: 4),
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: me ? AppColors.accent : AppColors.card,
+                          color: me ? context.sm.accent : context.sm.card,
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: SelectableText(m['content']!, style: const TextStyle(height: 1.4)),

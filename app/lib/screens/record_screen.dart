@@ -2,17 +2,23 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:record/record.dart';
 
 import '../models.dart';
+import '../modes.dart';
+import '../services/local_files.dart';
 import '../services/recorder.dart';
 import '../services/repo.dart';
 import '../theme.dart';
+import '../widgets/mari_orb.dart';
+import 'home_screen.dart' show showModeSheet;
 import 'recording_screen.dart';
 
-/// Экран записи: таймер, «волна» громкости, пауза, стоп.
+/// Экран записи: шар Мари, таймер, метки «Фото доски», «Важно!», «Не понял».
 class RecordScreen extends StatefulWidget {
-  const RecordScreen({super.key});
+  final String mode;
+  const RecordScreen({super.key, this.mode = 'meeting'});
   @override
   State<RecordScreen> createState() => _RecordScreenState();
 }
@@ -21,8 +27,12 @@ class _RecordScreenState extends State<RecordScreen> {
   final _rec = Recorder();
   Timer? _timer;
   StreamSubscription<Amplitude>? _ampSub;
-  final _levels = <double>[];
+  final _levels = List<double>.filled(9, .2, growable: true);
+  final _marks = <Map<String, dynamic>>[];
+  late String _mode = widget.mode;
   bool _started = false, _saving = false;
+
+  int _count(String type) => _marks.where((m) => m['type'] == type).length;
 
   @override
   void initState() {
@@ -40,14 +50,29 @@ class _RecordScreenState extends State<RecordScreen> {
       return;
     }
     _ampSub = _rec.amplitude().listen((a) {
-      final v = ((a.current + 60) / 60).clamp(0.05, 1.0);
+      final v = ((a.current + 55) / 55).clamp(0.08, 1.0).toDouble();
       setState(() {
         _levels.add(v);
-        if (_levels.length > 60) _levels.removeAt(0);
+        _levels.removeAt(0);
       });
     });
     _timer = Timer.periodic(const Duration(seconds: 1), (_) => setState(() {}));
     setState(() => _started = true);
+  }
+
+  void _mark(String type, {String? path}) {
+    setState(() => _marks.add({'type': type, 't': _rec.elapsed.inSeconds, if (path != null) 'path': path}));
+    final label = switch (type) { 'important' => 'Отметила как важное', 'unclear' => 'Объясню этот момент после записи', _ => 'Фото добавлено' };
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(label), duration: const Duration(seconds: 1)));
+  }
+
+  Future<void> _photo() async {
+    final x = await ImagePicker().pickImage(source: ImageSource.camera, imageQuality: 75, maxWidth: 1800);
+    if (x == null || !mounted) return;
+    final path = await LocalPhotos.savePhoto(x.path);
+    if (mounted) _mark('photo', path: path);
   }
 
   Future<void> _togglePause() async {
@@ -64,7 +89,7 @@ class _RecordScreenState extends State<RecordScreen> {
     final (path, dur) = res;
     try {
       final id = await Repo.createRecording(
-          source: Platform.isWindows ? 'desktop' : 'mic', localPath: path, durationSec: dur);
+          source: Platform.isWindows ? 'desktop' : 'mic', mode: _mode, localPath: path, durationSec: dur, marks: _marks);
       Repo.uploadAndQueue(id, File(path)).catchError((_) {});
       if (!mounted) return;
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => RecordingScreen(recordingId: id)));
@@ -107,6 +132,32 @@ class _RecordScreenState extends State<RecordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.sm;
+    final mode = modeById(_mode);
+    final paused = _rec.isPaused;
+    Widget markBtn(IconData icon, Color color, String label, int n, VoidCallback onTap) => Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 5),
+            child: Material(
+              color: s.card,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: s.border)),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: _started ? onTap : null,
+                child: SizedBox(
+                  height: 84,
+                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Icon(icon, color: color, size: 26),
+                    const SizedBox(height: 6),
+                    Text(label, style: TextStyle(color: s.text, fontWeight: FontWeight.w700, fontSize: 13)),
+                    if (n > 0) Text('$n', style: TextStyle(color: s.muted, fontSize: 12, fontWeight: FontWeight.w600)),
+                  ]),
+                ),
+              ),
+            ),
+          ),
+        );
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
@@ -114,63 +165,117 @@ class _RecordScreenState extends State<RecordScreen> {
         if (await _confirmDiscard() && context.mounted) Navigator.pop(context);
       },
       child: Scaffold(
-        appBar: AppBar(title: const Text('Запись')),
-        body: SafeArea(
-          child: Column(children: [
-            const SizedBox(height: 24),
-            Text(_rec.isPaused ? 'Пауза' : 'Мари слушает…',
-                style: const TextStyle(fontSize: 18, color: AppColors.muted)),
-            const SizedBox(height: 12),
-            Text(fmtDuration(_rec.elapsed.inSeconds),
-                style: const TextStyle(fontSize: 56, fontWeight: FontWeight.w300, fontFeatures: [FontFeature.tabularFigures()])),
-            const SizedBox(height: 32),
-            SizedBox(
-              height: 120,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  for (final l in _levels)
-                    Container(
-                      width: 4,
-                      height: 120 * l,
-                      margin: const EdgeInsets.symmetric(horizontal: 1.5),
-                      decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(2)),
-                    ),
-                ],
-              ),
-            ),
-            const Spacer(),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 32),
-              child: Text('Можно заблокировать экран — запись продолжится. Не забудьте предупредить собеседников о записи.',
-                  textAlign: TextAlign.center, style: TextStyle(color: AppColors.muted, fontSize: 13)),
-            ),
-            const SizedBox(height: 24),
-            if (_saving)
-              const Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator())
-            else
-              Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-                IconButton.filledTonal(
-                  iconSize: 32,
-                  onPressed: _started ? _togglePause : null,
-                  icon: Icon(_rec.isPaused ? Icons.play_arrow : Icons.pause),
-                ),
-                SizedBox(
-                  width: 88,
-                  height: 88,
-                  child: FloatingActionButton(
-                    heroTag: 'stop',
-                    backgroundColor: AppColors.record,
-                    shape: const CircleBorder(),
-                    onPressed: _started ? _stop : null,
-                    child: const Icon(Icons.stop, size: 40, color: Colors.white),
+        body: Stack(children: [
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Align(
+                alignment: const Alignment(0, -.25),
+                child: Container(
+                  width: 460,
+                  height: 460,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(colors: [
+                      AppColors.orbViolet.withValues(alpha: context.isDark ? .32 : .2),
+                      AppColors.orbCyan.withValues(alpha: .1),
+                      s.bg.withValues(alpha: 0),
+                    ], stops: const [0, .4, .68]),
                   ),
                 ),
-                const SizedBox(width: 56),
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+              child: Column(children: [
+                Row(children: [
+                  IconButton.outlined(
+                    tooltip: 'Свернуть',
+                    onPressed: () async {
+                      if (await _confirmDiscard() && context.mounted) Navigator.pop(context);
+                    },
+                    icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                  ),
+                  const Spacer(),
+                  Row(children: [
+                    Container(width: 8, height: 8, decoration: BoxDecoration(color: paused ? s.muted : s.danger, shape: BoxShape.circle)),
+                    const SizedBox(width: 6),
+                    Text(paused ? 'ПАУЗА' : 'REC',
+                        style: TextStyle(color: paused ? s.muted : s.danger, fontWeight: FontWeight.w800, fontSize: 13)),
+                  ]),
+                  const Spacer(),
+                  const SizedBox(width: 48),
+                ]),
+                const SizedBox(height: 8),
+                ActionChip(
+                  avatar: Icon(mode.icon, size: 18, color: mode.color),
+                  label: Text(mode.label),
+                  onPressed: () => showModeSheet(context, onPick: (m) => setState(() => _mode = m)),
+                ),
+                const SizedBox(height: 6),
+                Text(fmtDuration(_rec.elapsed.inSeconds),
+                    style: display(44, color: s.text).copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
+                Expanded(
+                  child: Center(child: MariOrb(size: 210, level: paused ? null : _levels.last)),
+                ),
+                SizedBox(
+                  height: 40,
+                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    for (var i = 0; i < _levels.length; i++)
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 120),
+                        width: 4,
+                        height: 6 + 34 * (paused ? .1 : _levels[i]),
+                        margin: const EdgeInsets.symmetric(horizontal: 2),
+                        decoration: BoxDecoration(
+                          color: i.isEven ? AppColors.orbViolet : AppColors.orbCyan,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                  ]),
+                ),
+                const SizedBox(height: 8),
+                Text(paused ? 'Запись на паузе' : 'Мари слушает — экран можно выключить',
+                    style: TextStyle(color: s.muted, fontSize: 14)),
+                const SizedBox(height: 18),
+                Row(children: [
+                  markBtn(Icons.photo_camera_rounded, s.teal, 'Фото доски', _count('photo'), _photo),
+                  markBtn(Icons.star_rounded, s.warn, 'Важно!', _count('important'), () => _mark('important')),
+                  markBtn(Icons.help_outline_rounded, s.accentText, 'Не понял', _count('unclear'), () => _mark('unclear')),
+                ]),
+                const SizedBox(height: 12),
+                if (_saving)
+                  const Padding(padding: EdgeInsets.all(18), child: CircularProgressIndicator())
+                else
+                  Row(children: [
+                    SizedBox(
+                      width: 64,
+                      height: 64,
+                      child: OutlinedButton(
+                        onPressed: _started ? _togglePause : null,
+                        style: OutlinedButton.styleFrom(padding: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22))),
+                        child: Icon(paused ? Icons.play_arrow_rounded : Icons.pause_rounded, size: 28, semanticLabel: paused ? 'Продолжить' : 'Пауза'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: SizedBox(
+                        height: 64,
+                        child: FilledButton.icon(
+                          onPressed: _started ? _stop : null,
+                          style: FilledButton.styleFrom(backgroundColor: s.invBg, foregroundColor: s.invText,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22))),
+                          icon: const Icon(Icons.stop_rounded),
+                          label: const Text('Завершить и собрать итог'),
+                        ),
+                      ),
+                    ),
+                  ]),
               ]),
-            const SizedBox(height: 40),
-          ]),
-        ),
+            ),
+          ),
+        ]),
       ),
     );
   }

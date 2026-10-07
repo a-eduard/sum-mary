@@ -46,7 +46,7 @@ class _AudioPlayerBarState extends State<AudioPlayerBar> {
   Widget build(BuildContext context) {
     final max = _dur.inMilliseconds.toDouble();
     return Container(
-      color: AppColors.card,
+      color: context.sm.card,
       padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
       child: SafeArea(
         top: false,
@@ -63,7 +63,7 @@ class _AudioPlayerBarState extends State<AudioPlayerBar> {
                 onChanged: (v) => _p.seek(Duration(milliseconds: v.round())),
               ),
               Text('${fmtMs(_pos.inMilliseconds)} / ${fmtMs(_dur.inMilliseconds)}',
-                  style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+                  style: TextStyle(color: context.sm.muted, fontSize: 12)),
             ]),
           ),
           TextButton(

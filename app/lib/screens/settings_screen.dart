@@ -20,10 +20,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(padding: const EdgeInsets.only(bottom: 100), children: [
-      const Padding(
-        padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-        child: Text('Настройки', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
+    return ListView(padding: const EdgeInsets.only(bottom: 140), children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 16, 8),
+        child: Text('Профиль', style: display(24, color: context.sm.text)),
       ),
       FutureBuilder<Profile>(
         future: _profile,
@@ -42,7 +42,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     minHeight: 8, borderRadius: BorderRadius.circular(4)),
                 const SizedBox(height: 8),
                 Text('Использовано ${p.minutesUsed} из ${p.effectiveLimit} мин в этом месяце',
-                    style: const TextStyle(color: AppColors.muted)),
+                    style: TextStyle(color: context.sm.muted)),
                 if (!p.isPro) ...[
                   const SizedBox(height: 12),
                   FilledButton(
@@ -57,6 +57,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           );
         },
+      ),
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Оформление', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 12),
+            ValueListenableBuilder<ThemeMode>(
+              valueListenable: ThemeController.mode,
+              builder: (_, mode, __) => SegmentedButton<ThemeMode>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(value: ThemeMode.system, label: Text('Авто')),
+                  ButtonSegment(value: ThemeMode.light, label: Text('Светлая')),
+                  ButtonSegment(value: ThemeMode.dark, label: Text('Тёмная')),
+                ],
+                selected: {mode},
+                onSelectionChanged: (v) => ThemeController.set(v.first),
+              ),
+            ),
+          ]),
+        ),
       ),
       Card(
         child: Column(children: [

@@ -36,11 +36,11 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Словарь терминов')),
       body: Column(children: [
-        const Padding(
+        Padding(
           padding: EdgeInsets.all(16),
           child: Text('Добавьте имена коллег, названия компаний, продуктов и терминов. '
               'Мари учтёт их при подготовке резюме и исправит в расшифровке.',
-              style: TextStyle(color: AppColors.muted)),
+              style: TextStyle(color: context.sm.muted)),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
