@@ -19,6 +19,7 @@ import '../roles.dart';
 import '../widgets/folder_sheet.dart';
 import '../widgets/recording_tile.dart';
 import '../widgets/start_sheet.dart';
+import 'chat_screen.dart';
 import 'record_screen.dart';
 import 'recording_screen.dart';
 import 'settings_screen.dart';
@@ -104,10 +105,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _askAndRecord(String mode) => showStartSheet(context, mode: mode, onStart: _record);
 
-  void _openSearch() {
-    setState(() => _tab = 1);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _recordingsKey.currentState?.focusSearch());
-  }
+  void _openSearch() => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatScreen()));
 
   @override
   Widget build(BuildContext context) {
@@ -383,7 +381,7 @@ class _TodayPageState extends State<TodayPage> {
                   if (a.forMe != b.forMe) return a.forMe ? -1 : 1; // сначала мои
                   return (a.dueDate ?? DateTime(2100)).compareTo(b.dueDate ?? DateTime(2100));
                 });
-              final tasks = open.take(events.isEmpty ? 3 : 2).toList();
+              final tasks = open.take(3).toList();
               if (events.isEmpty && tasks.isEmpty) return const SizedBox.shrink();
               return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                 section('Ближайшее'),
@@ -396,8 +394,7 @@ class _TodayPageState extends State<TodayPage> {
                       _refresh();
                     },
                   ),
-                if (events.isEmpty && tasks.isNotEmpty) _HeroTask(task: tasks.first),
-                for (final t in (events.isEmpty ? tasks.skip(1) : tasks)) _TaskRow(task: t, onOpen: _open),
+                for (final t in tasks) _TaskRow(task: t, onOpen: _open),
               ]);
             },
           ),
@@ -479,45 +476,6 @@ class _HeroEvent extends StatelessWidget {
             onPressed: onOpen,
             child: Text('Открыть запись', style: TextStyle(color: s.accentText, fontWeight: FontWeight.w700)),
           ),
-        ]),
-      ]),
-    );
-  }
-}
-
-class _HeroTask extends StatelessWidget {
-  final TaskItem task;
-  const _HeroTask({required this.task});
-  @override
-  Widget build(BuildContext context) {
-    final s = context.sm;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: s.heroBorder),
-        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [s.heroStart, s.card], stops: const [0, .75]),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        if (task.dueText != null) Text(task.dueText!, style: TextStyle(color: s.heroText, fontSize: 13, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 6),
-        Text(task.text, style: TextStyle(color: s.text, fontSize: 17, fontWeight: FontWeight.w700, height: 1.3)),
-        const SizedBox(height: 12),
-        Row(children: [
-          FilledButton(
-            onPressed: () => Repo.setTaskDone(task.id, true),
-            style: FilledButton.styleFrom(backgroundColor: s.invBg, foregroundColor: s.invText, minimumSize: const Size(0, 44)),
-            child: const Text('Готово'),
-          ),
-          if (task.recordingId != null) ...[
-            const SizedBox(width: 8),
-            TextButton(
-              onPressed: () => Navigator.push(
-                  context, MaterialPageRoute(builder: (_) => RecordingScreen(recordingId: task.recordingId!))),
-              child: Text('Открыть запись', style: TextStyle(color: s.accentText, fontWeight: FontWeight.w700)),
-            ),
-          ],
         ]),
       ]),
     );
@@ -756,6 +714,11 @@ class RecordingsPageState extends State<RecordingsPage> {
               onTap: () => _scaffold.currentState?.openDrawer(),
               child: Text(_filterName(), maxLines: 1, overflow: TextOverflow.ellipsis, style: display(22, color: s.text)),
             ),
+          ),
+          IconButton(
+            tooltip: folder == null ? 'Спросить Мари по всем записям' : 'Спросить Мари по полке',
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(folder: folder))),
+            icon: Icon(Icons.chat_bubble_outline_rounded, color: s.text),
           ),
           IconButton(onPressed: _importMenu, icon: Icon(Icons.upload_file_rounded, color: s.text), tooltip: 'Импорт'),
         ]),

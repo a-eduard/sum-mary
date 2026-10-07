@@ -169,6 +169,36 @@ def save_results(rec, duration_sec: int, segments: list[dict], result: dict, mod
         c.commit()
 
 
+def library_for_chat(user_id, question: str, folder_id=None, limit: int = 40):
+    """Итоги последних записей (по полке или всех) + полные расшифровки 2 самых подходящих к вопросу."""
+    import re
+    with conn() as c:
+        where = "r.user_id=%(u)s and r.deleted_at is null and r.status='ready'"
+        if folder_id:
+            where += " and r.folder_id=%(f)s"
+        recs = c.execute(
+            f"""select r.id, r.title, r.mode, r.recorded_at, r.speaker_names, s.summary, s.key_points, s.events
+                from public.recordings r left join public.summaries s on s.recording_id = r.id
+                where {where} order by r.recorded_at desc limit %(n)s""",
+            {"u": user_id, "f": folder_id, "n": limit}).fetchall()
+        ids = [r["id"] for r in recs]
+        words = [w for w in re.findall(r"[\wё]{4,}", question.lower())][:6]
+        best = []
+        if ids and words:
+            best = c.execute(
+                """select recording_id, count(*) n from public.segments
+                   where recording_id = any(%(ids)s) and text ilike any(%(pats)s)
+                   group by recording_id order by n desc limit 2""",
+                {"ids": ids, "pats": [f"%{w[:max(4, len(w) - 2)]}%" for w in words]}).fetchall()
+        trans = []
+        for b in best:
+            segs = c.execute("select speaker, start_ms, text from public.segments where recording_id=%s order by idx",
+                             (b["recording_id"],)).fetchall()
+            rec = next(r for r in recs if r["id"] == b["recording_id"])
+            trans.append((rec, segs))
+        return recs, trans
+
+
 def get_transcript_for_chat(rec_id, user_id):
     with conn() as c:
         rec = c.execute(

@@ -20,7 +20,8 @@ def current_user(authorization: str = Header(...)) -> str:
 
 
 class ChatIn(BaseModel):
-    recording_id: str
+    recording_id: str | None = None   # чат по одной записи
+    folder_id: str | None = None      # по полке; без обоих — по всем записям
     question: str
     history: list[dict] = []
 
@@ -34,6 +35,8 @@ def health():
 def chat(body: ChatIn, user_id: str = Depends(current_user)):
     if not body.question.strip():
         raise HTTPException(400, "Пустой вопрос")
+    if not body.recording_id:
+        return {"answer": _chat_library(body, user_id)}
     rec, data = db.get_transcript_for_chat(body.recording_id, user_id)
     if not rec:
         raise HTTPException(404, "Запись не найдена")
@@ -43,6 +46,24 @@ def chat(body: ChatIn, user_id: str = Depends(current_user)):
     profile = db.get_profile(user_id)
     answer = llm.chat(body.question, body.history, transcript, data["summary"], profile["llm_provider"])
     return {"answer": answer}
+
+
+def _chat_library(body: ChatIn, user_id: str) -> str:
+    recs, trans = db.library_for_chat(user_id, body.question, body.folder_id)
+    if not recs:
+        return "Пока нет готовых записей — запишите урок или встречу, и я смогу отвечать по ним."
+    lines = []
+    for r in recs:
+        kp = "; ".join(k.get("text", "") for k in (r.get("key_points") or [])[:8] if isinstance(k, dict))
+        ev = "; ".join(f'{e.get("title")} {e.get("date")}' for e in (r.get("events") or []) if isinstance(e, dict))
+        lines.append(f'• «{r["title"]}» ({r["recorded_at"]:%d.%m.%Y}, {r["mode"]}): {r.get("summary") or ""}'
+                     + (f" Главное: {kp}." if kp else "") + (f" Даты: {ev}." if ev else ""))
+    library = "\n".join(lines)[:60000]
+    transcripts = "\n\n".join(f'=== «{r["title"]}» ({r["recorded_at"]:%d.%m.%Y}) ===\n'
+                               + llm.format_transcript(segs, r.get("speaker_names") or {}) for r, segs in trans)[:60000]
+    scope = " с полки" if body.folder_id else ""
+    profile = db.get_profile(user_id)
+    return llm.chat_library(body.question, body.history, library, transcripts, scope, profile["llm_provider"])
 
 
 class ResummarizeIn(BaseModel):

@@ -21,8 +21,14 @@ class Api {
     return Map<String, dynamic>.from(data);
   }
 
-  static Future<String> chat(String recordingId, String question, List<Map<String, String>> history) async {
-    final d = await _post('/chat', {'recording_id': recordingId, 'question': question, 'history': history});
+  /// Чат с Мари: по записи, по полке или (без обоих) по всем записям.
+  static Future<String> chat(String question, List<Map<String, String>> history, {String? recordingId, String? folderId}) async {
+    final d = await _post('/chat', {
+      if (recordingId != null) 'recording_id': recordingId,
+      if (folderId != null) 'folder_id': folderId,
+      'question': question,
+      'history': history,
+    });
     return d['answer'] as String;
   }
 

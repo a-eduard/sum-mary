@@ -61,6 +61,31 @@ CHAT_PROMPT = """Ты — Мари, дружелюбный ИИ-ассистен
 {transcript}"""
 
 
+LIBRARY_PROMPT = """Ты — Мари, ИИ-ассистент приложения СамМари. У пользователя много записей (уроки, лекции, встречи, звонки).
+Ниже — краткие итоги его записей{scope} и полные расшифровки самых подходящих к вопросу.
+Отвечай по-русски, кратко и по делу, только по этим данным. Если ответа нет — так и скажи.
+Всегда указывай, из какой записи факт: «название записи (дата)», а для расшифровок — ещё таймкод [мм:сс].
+Если просят подготовиться (тест, вопросы, конспект) — делай это по материалам записей.
+
+ИТОГИ ЗАПИСЕЙ:
+{library}
+
+РАСШИФРОВКИ:
+{transcripts}"""
+
+
+def chat_library(question: str, history: list[dict], library: str, transcripts: str, scope: str,
+                 provider: str = "deepseek") -> str:
+    msgs = [{"role": "system", "content": LIBRARY_PROMPT.format(library=library or "—", transcripts=transcripts or "—",
+                                                                 scope=scope)}]
+    for h in history[-10:]:
+        if h.get("role") in ("user", "assistant") and h.get("content"):
+            msgs.append({"role": h["role"], "content": h["content"]})
+    msgs.append({"role": "user", "content": question})
+    text, _ = _call(msgs, provider, max_tokens=2000)
+    return text
+
+
 def _call(messages, provider: str, json_mode: bool = False, max_tokens: int = 4000) -> tuple[str, str]:
     if provider == "yandex" and config.YC_LLM_API_KEY:
         model = f"gpt://{config.YC_FOLDER_ID}/{config.YC_LLM_MODEL}"

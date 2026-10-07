@@ -270,7 +270,7 @@ class _RecordScreenState extends State<RecordScreen> {
                           style: FilledButton.styleFrom(backgroundColor: s.invBg, foregroundColor: s.invText,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22))),
                           icon: const Icon(Icons.stop_rounded),
-                          label: const Text('Завершить и собрать итог'),
+                          label: const Text('Завершить'),
                         ),
                       ),
                     ),
