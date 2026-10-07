@@ -60,6 +60,7 @@ class Repo {
           'source': source,
           'mode': mode,
           'marks': marks,
+          'tz_offset_min': DateTime.now().timeZoneOffset.inMinutes,
           'local_audio': localPath,
           'duration_sec': durationSec,
           'status': 'uploading',

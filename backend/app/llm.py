@@ -6,25 +6,48 @@ import requests
 
 from . import config
 
-SUMMARY_PROMPT = """Ты — Мари, ИИ-ассистент приложения СамМари. Тебе дают расшифровку записи (встреча, звонок, лекция или урок).
+SUMMARY_PROMPT = """Ты — Мари, ИИ-ассистент приложения СамМари. Тебе дают расшифровку записи.
 Расшифровка сделана автоматически: возможны ошибки распознавания, спикеры размечены автоматически и могут быть перепутаны.
+Тип записи: {mode_name}. {mode_rules}
+Запись сделана: {recorded} ({weekday}). Относительные даты («завтра», «в четверг», «через неделю») считай от этой даты.
 {vocab}
+{marks}
 Верни СТРОГО JSON без пояснений, такого вида:
 {{
   "title": "название записи, до 8 слов",
   "summary": "краткое резюме, 3–7 предложений, по фактам",
+  "key_points": [{{"text": "главная мысль / определение / формула / пример", "kind": "definition|formula|example|important|mistake|note", "t": "мм:сс"}}],
+  "sections": [{{"title": "название блока", "items": ["пункт", ...]}}],
   "decisions": ["ключевое решение", ...],
-  "tasks": [{{"text": "что сделать", "assignee": "кто или null", "due": "срок как сказали или null"}}],
+  "tasks": [{{"text": "что сделать", "assignee": "кто или null", "due": "срок как сказали или null", "due_date": "ГГГГ-ММ-ДД или null", "t": "мм:сс"}}],
+  "events": [{{"title": "что за событие", "date": "ГГГГ-ММ-ДД", "time": "ЧЧ:ММ или null", "kind": "test|meeting|deadline|homework|other", "t": "мм:сс"}}],
+  "explanations": [{{"t": "мм:сс", "topic": "что было непонятно", "answer": "объяснение простыми словами"}}],
   "responsibilities": [{{"person": "имя", "area": "за что отвечает"}}],
   "open_questions": ["вопрос", ...],
   "term_fixes": [{{"from": "как распознано", "to": "как правильно"}}]
 }}
 Правила:
 - Только факты из расшифровки, ничего не выдумывай. Нет данных — пустой список или null.
-- tasks — только реальные договорённости и поручения.
-- responsibilities — кто за какое направление/сервис/тему отвечает, если это прозвучало.
-- term_fixes — только явные ошибки распознавания названий, брендов, IT-терминов и англоязычных слов (например «доку сил» → «DocuSeal»). "from" должен дословно встречаться в тексте.
+- "t" — таймкод из расшифровки, где это прозвучало (формат мм:сс или ч:мм:сс). Обязательно для key_points, tasks, events.
+- key_points: 3–12 самых важных пунктов. kind: definition — определение термина; formula — формула (пиши в одну строку обычными символами: ∫, √, ², ≤); example — разобранный пример; important — то, что подчеркнули как важное («будет на контрольной», «обратите внимание»); mistake — типичная ошибка; note — прочее.
+- tasks — только реальные договорённости, поручения, домашние задания.
+- events — только конкретные даты событий (контрольная, экзамен, встреча, созвон, дедлайн, сдача ДЗ). Без даты — не включай.
+- explanations — только для моментов, отмеченных пользователем как «Не понял». Объясни простыми словами, опираясь на расшифровку; если используешь общие знания — это допустимо, но не противоречь сказанному.
+- term_fixes — только явные ошибки распознавания названий, брендов, IT-терминов и англоязычных слов. "from" должен дословно встречаться в тексте.
 - Пиши по-русски (термины — в оригинальном написании)."""
+
+MODES = {
+    "lesson": ("школьный урок", "Это урок в школе. sections: «Домашнее задание», «Что будет на контрольной» (если прозвучало), «Новые термины». В key_points — определения, формулы, разобранные примеры, важное от учителя. Спикер, который объясняет, — учитель."),
+    "lecture": ("лекция", "Это лекция в вузе. sections: «План лекции» (темы по порядку), «Литература» (если называли), «Вопросы к экзамену» (если прозвучали). В key_points — определения, формулы, теоремы, примеры, акценты преподавателя."),
+    "seminar": ("семинар", "Это семинар. sections: «Разобранные задачи», «Кто что отвечал», «Задано». decisions обычно пустые."),
+    "meeting": ("рабочая встреча", "sections: «Ключевые темы», «Риски» (если были). Основное — решения, задачи с ответственными и сроками."),
+    "call": ("телефонный звонок", "sections: «О чём договорились», «Следующий шаг». Будь краток."),
+    "interview": ("собеседование", "Это собеседование с кандидатом. sections: «Опыт кандидата», «Сильные стороны», «Слабые стороны и риски», «Ответы на ключевые вопросы», «Вопросы кандидата». В summary — общее впечатление без оценочных суждений о личности, только по фактам из разговора."),
+    "sales": ("переговоры / продажи", "Это разговор с клиентом. sections: «Потребности клиента», «Возражения», «Бюджет и сроки», «Следующий шаг». tasks — что обещали сделать."),
+    "tutor": ("занятие с репетитором", "Это занятие с репетитором. sections: «Что прошли», «Где были ошибки», «Домашнее задание». В key_points — правила, формулы, примеры, типичные ошибки ученика."),
+}
+
+WEEKDAYS = ["понедельник", "вторник", "среда", "четверг", "пятница", "суббота", "воскресенье"]
 
 CHAT_PROMPT = """Ты — Мари, дружелюбный ИИ-ассистент приложения СамМари. Отвечай на вопросы пользователя по расшифровке записи ниже.
 Отвечай кратко и по делу, по-русски. Если ответа в расшифровке нет — так и скажи. Указывай таймкоды [мм:сс], где это уместно.
@@ -75,20 +98,61 @@ def _parse_json(text: str) -> dict:
     return json.loads(m.group(0) if m else text)
 
 
-def summarize(transcript: str, vocabulary: list[str], provider: str = "deepseek") -> tuple[dict, str]:
+def _fmt_t(sec: int) -> str:
+    return f"{sec // 60:02d}:{sec % 60:02d}"
+
+
+def parse_t(v) -> int | None:
+    """«мм:сс» или «ч:мм:сс» → секунды."""
+    if not isinstance(v, str):
+        return None
+    try:
+        parts = [int(x) for x in v.strip().strip("[]").split(":")]
+    except ValueError:
+        return None
+    sec = 0
+    for p in parts:
+        sec = sec * 60 + p
+    return sec
+
+
+def summarize(transcript: str, vocabulary: list[str], provider: str = "deepseek", mode: str = "meeting",
+              marks: list[dict] | None = None, recorded_at=None) -> tuple[dict, str]:
+    from datetime import datetime
     vocab = ""
     if vocabulary:
         vocab = "Словарь пользователя (правильное написание терминов, имён и названий): " + ", ".join(vocabulary)
-    msgs = [{"role": "system", "content": SUMMARY_PROMPT.format(vocab=vocab)},
+    mode_name, mode_rules = MODES.get(mode, MODES["meeting"])
+    rec = recorded_at or datetime.now()
+    marks_text = ""
+    imp = [m for m in (marks or []) if m.get("type") == "important"]
+    unc = [m for m in (marks or []) if m.get("type") == "unclear"]
+    if imp:
+        marks_text += ("Пользователь во время записи отметил как ВАЖНОЕ моменты около: "
+                       + ", ".join(_fmt_t(int(m.get("t", 0))) for m in imp)
+                       + ". Обязательно включи сказанное в эти моменты (±30 секунд) в key_points с kind=important.\n")
+    if unc:
+        marks_text += ("Пользователь отметил «НЕ ПОНЯЛ» в моменты около: "
+                       + ", ".join(_fmt_t(int(m.get("t", 0))) for m in unc)
+                       + ". Для каждого такого момента добавь пункт в explanations.\n")
+    prompt = SUMMARY_PROMPT.format(mode_name=mode_name, mode_rules=mode_rules, vocab=vocab, marks=marks_text,
+                                   recorded=rec.strftime("%Y-%m-%d %H:%M"), weekday=WEEKDAYS[rec.weekday()])
+    msgs = [{"role": "system", "content": prompt},
             {"role": "user", "content": "Расшифровка:\n\n" + transcript}]
-    text, model = _call(msgs, provider, json_mode=True)
+    text, model = _call(msgs, provider, json_mode=True, max_tokens=6000)
     try:
         data = _parse_json(text)
     except Exception:
         data = {"summary": text}
-    for k in ("decisions", "tasks", "responsibilities", "open_questions", "term_fixes"):
+    for k in ("key_points", "sections", "decisions", "tasks", "events", "explanations",
+              "responsibilities", "open_questions", "term_fixes"):
         if not isinstance(data.get(k), list):
             data[k] = []
+    for k in ("key_points", "tasks", "events", "explanations"):
+        for it in data[k]:
+            if isinstance(it, dict):
+                it["t_sec"] = parse_t(it.get("t"))
+    data["events"] = [e for e in data["events"] if isinstance(e, dict) and e.get("date") and e.get("title")]
     return data, model
 
 

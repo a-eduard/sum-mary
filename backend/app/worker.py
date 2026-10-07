@@ -4,6 +4,8 @@ import os
 import tempfile
 import time
 import traceback
+from datetime import timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from . import config, db, pipeline, storage
 
@@ -35,8 +37,12 @@ def handle(rec):
             storage.delete(rec["audio_path"])
             db.set_status(rid, "limit_exceeded", "Закончились минуты в этом месяце")
             return
+        off = rec.get("tz_offset_min")
+        tz = timezone(timedelta(minutes=off)) if off is not None else ZoneInfo("Europe/Moscow")
+        tz_rec = rec["recorded_at"].astimezone(tz).replace(tzinfo=None)
         out = pipeline.process_file(src, db.get_vocabulary(rec["user_id"]), profile["llm_provider"],
-                                    on_stage=lambda s: db.set_stage(rid, s))
+                                    on_stage=lambda s: db.set_stage(rid, s), mode=rec.get("mode") or "meeting",
+                                    marks=rec.get("marks") or [], recorded_at=tz_rec)
     db.save_results(rec, out["duration_sec"], out["segments"], out["result"], out["model"])
     try:
         storage.delete(rec["audio_path"])

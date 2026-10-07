@@ -78,6 +78,19 @@ def get_vocabulary(user_id) -> list[str]:
             "select term from public.vocabulary where user_id=%s order by created_at", (user_id,))]
 
 
+def _j(result: dict, key: str) -> str:
+    return json.dumps(result.get(key) or [], ensure_ascii=False)
+
+
+def _date(v):
+    """«ГГГГ-ММ-ДД» → date или None (ИИ иногда пишет мусор)."""
+    from datetime import date
+    try:
+        return date.fromisoformat(str(v)[:10]) if v else None
+    except ValueError:
+        return None
+
+
 def save_results(rec, duration_sec: int, segments: list[dict], result: dict, model: str):
     """Сохраняет транскрипт, резюме и задачи одной транзакцией."""
     rid, uid = rec["id"], rec["user_id"]
@@ -92,24 +105,25 @@ def save_results(rec, duration_sec: int, segments: list[dict], result: dict, mod
         c.execute(
             """
             insert into public.summaries (recording_id, user_id, summary, decisions, open_questions,
-                                          responsibilities, term_fixes, model)
-            values (%s,%s,%s,%s,%s,%s,%s,%s)
+                                          responsibilities, term_fixes, model, key_points, sections, events, explanations)
+            values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
             on conflict (recording_id) do update set summary=excluded.summary, decisions=excluded.decisions,
               open_questions=excluded.open_questions, responsibilities=excluded.responsibilities,
-              term_fixes=excluded.term_fixes, model=excluded.model, created_at=now()
+              term_fixes=excluded.term_fixes, model=excluded.model, key_points=excluded.key_points,
+              sections=excluded.sections, events=excluded.events, explanations=excluded.explanations, created_at=now()
             """,
-            (rid, uid, result.get("summary", ""), json.dumps(result.get("decisions", []), ensure_ascii=False),
-             json.dumps(result.get("open_questions", []), ensure_ascii=False),
-             json.dumps(result.get("responsibilities", []), ensure_ascii=False),
-             json.dumps(result.get("term_fixes", []), ensure_ascii=False), model),
+            (rid, uid, result.get("summary", ""), _j(result, "decisions"), _j(result, "open_questions"),
+             _j(result, "responsibilities"), _j(result, "term_fixes"), model,
+             _j(result, "key_points"), _j(result, "sections"), _j(result, "events"), _j(result, "explanations")),
         )
         c.execute("delete from public.tasks where recording_id=%s", (rid,))
         for t in result.get("tasks", []):
             if not t.get("text"):
                 continue
             c.execute(
-                "insert into public.tasks (user_id, recording_id, text, assignee, due_text) values (%s,%s,%s,%s,%s)",
-                (uid, rid, t["text"], t.get("assignee"), t.get("due")),
+                "insert into public.tasks (user_id, recording_id, text, assignee, due_text, due_date, t_sec) "
+                "values (%s,%s,%s,%s,%s,%s,%s)",
+                (uid, rid, t["text"], t.get("assignee"), t.get("due"), _date(t.get("due_date")), t.get("t_sec")),
             )
         title = result.get("title")
         keep_title = rec.get("title") and rec["title"] != "Новая запись"
