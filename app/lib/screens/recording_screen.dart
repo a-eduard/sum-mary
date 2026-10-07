@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../models.dart';
@@ -12,6 +13,7 @@ import '../widgets/mari_orb.dart';
 import '../services/api.dart';
 import '../services/calendar.dart';
 import '../services/local_files.dart';
+import '../services/pdf_export.dart';
 import '../services/uploader.dart';
 import '../services/repo.dart';
 import '../theme.dart';
@@ -19,6 +21,7 @@ import '../widgets/player.dart';
 import 'chat_screen.dart';
 import 'home_screen.dart' show showModeSheet;
 import 'paywall_screen.dart';
+import 'prepare_screen.dart';
 
 /// Карточка записи: статус обработки или результат (Резюме / Транскрипт / Задачи).
 class RecordingScreen extends StatefulWidget {
@@ -212,6 +215,46 @@ class _ReadyViewState extends State<_ReadyView> {
         await _load();
       });
 
+  void _pdf() {
+    final s = context.sm;
+    if (_summary == null) return;
+    Future<void> run(PdfTemplate t, bool print) async {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Готовлю PDF…'), duration: Duration(seconds: 2)));
+      try {
+        final bytes = await PdfExport.build(r, _summary!, _segs, t, folderName: folderById(r.folderId)?.name);
+        if (print) {
+          await Printing.layoutPdf(onLayout: (_) async => bytes, name: PdfExport.fileName(r, t));
+        } else {
+          await Printing.sharePdf(bytes: bytes, filename: PdfExport.fileName(r, t));
+        }
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Не получилось: $e')));
+      }
+    }
+
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 8), child: Text('PDF-конспект', style: display(18, color: s.text))),
+            for (final t in PdfTemplate.values)
+              ListTile(
+                title: Text(t.title, style: const TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: Text(t.hint, style: TextStyle(color: s.muted)),
+                trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                  IconButton(tooltip: 'Поделиться', onPressed: () => run(t, false), icon: Icon(Icons.ios_share_rounded, color: s.accentText)),
+                  IconButton(tooltip: 'Печать', onPressed: () => run(t, true), icon: Icon(Icons.print_rounded, color: s.accentText)),
+                ]),
+              ),
+          ]),
+        ),
+      ),
+    );
+  }
+
   Future<void> _rename() async {
     final c = TextEditingController(text: r.title);
     final v = await showDialog<String>(
@@ -334,6 +377,9 @@ class _ReadyViewState extends State<_ReadyView> {
                   child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), children: [
                     _Action(Icons.chat_bubble_outline_rounded, 'Спросить Мари', () => Navigator.push(context,
                         MaterialPageRoute(builder: (_) => ChatScreen(recording: r))), primary: true),
+                    _Action(Icons.school_outlined, 'Подготовка', () => Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => PrepareScreen(recording: r)))),
+                    _Action(Icons.picture_as_pdf_outlined, 'PDF-конспект', _pdf),
                     _Action(Icons.people_outline_rounded, 'Спикеры', _speakers),
                     _Action(Icons.ios_share_rounded, 'Поделиться', () => Share.share(_summaryText())),
                   ]),
@@ -606,36 +652,71 @@ class _TasksTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.sm;
     return StreamBuilder<List<TaskItem>>(
       stream: Repo.tasks(),
       builder: (context, snap) {
         final tasks = (snap.data ?? []).where((t) => t.recordingId == recordingId).toList();
-        return ListView(padding: const EdgeInsets.all(8), children: [
+        return ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 24), children: [
           if (tasks.isEmpty)
-            const Padding(padding: EdgeInsets.all(24), child: Text('Задач не найдено', textAlign: TextAlign.center)),
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text('В этой записи задач не нашлось', textAlign: TextAlign.center, style: TextStyle(color: s.muted)),
+            ),
           for (final t in tasks)
-            CheckboxListTile(
-              value: t.done,
-              onChanged: (v) => Repo.setTaskDone(t.id, v ?? false),
-              title: Text(t.text, style: TextStyle(decoration: t.done ? TextDecoration.lineThrough : null)),
-              subtitle: Text([if (t.assignee != null) t.assignee!, if (t.dueText != null) 'срок: ${t.dueText}'].join(' · ')),
-              controlAffinity: ListTileControlAffinity.leading,
+            Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              decoration: BoxDecoration(color: s.card, borderRadius: BorderRadius.circular(20), border: Border.all(color: s.border)),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                IconButton(
+                  tooltip: t.done ? 'Вернуть' : 'Выполнено',
+                  onPressed: () => Repo.setTaskDone(t.id, !t.done),
+                  icon: Icon(t.done ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                      color: t.done ? s.success : s.teal, size: 26),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(0, 12, 8, 12),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(t.text,
+                          style: TextStyle(
+                              color: t.done ? s.muted : s.text,
+                              fontWeight: FontWeight.w700,
+                              height: 1.3,
+                              decoration: t.done ? TextDecoration.lineThrough : null)),
+                      if (t.forMe || t.assignee != null || t.dueText != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                              [if (t.forMe) 'Вам', if (!t.forMe && t.assignee != null) t.assignee!, if (t.dueText != null) 'срок: ${t.dueText}']
+                                  .join(' · '),
+                              style: TextStyle(color: t.forMe ? s.accentText : s.muted, fontSize: 13, fontWeight: FontWeight.w600)),
+                        ),
+                    ]),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Удалить',
+                  onPressed: () => Repo.deleteTask(t.id),
+                  icon: Icon(Icons.close_rounded, color: s.muted, size: 20),
+                ),
+              ]),
             ),
           TextButton.icon(
             onPressed: () async {
               final c = TextEditingController();
               final v = await showDialog<String>(
                 context: context,
-                builder: (_) => AlertDialog(
+                builder: (ctx) => AlertDialog(
                   title: const Text('Новая задача'),
-                  content: TextField(controller: c, autofocus: true),
-                  actions: [TextButton(onPressed: () => Navigator.pop(context, c.text), child: const Text('Добавить'))],
+                  content: TextField(controller: c, autofocus: true, decoration: const InputDecoration(hintText: 'Что сделать')),
+                  actions: [TextButton(onPressed: () => Navigator.pop(ctx, c.text), child: const Text('Добавить'))],
                 ),
               );
               if (v != null && v.trim().isNotEmpty) await Repo.addTask(v.trim(), recordingId: recordingId);
             },
-            icon: const Icon(Icons.add),
-            label: const Text('Добавить задачу'),
+            icon: Icon(Icons.add_rounded, color: s.accentText),
+            label: Text('Добавить задачу', style: TextStyle(color: s.accentText, fontWeight: FontWeight.w700)),
           ),
         ]);
       },

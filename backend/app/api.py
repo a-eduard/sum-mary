@@ -66,6 +66,52 @@ def _chat_library(body: ChatIn, user_id: str) -> str:
     return llm.chat_library(body.question, body.history, library, transcripts, scope, profile["llm_provider"])
 
 
+class PrepareIn(BaseModel):
+    kind: str                       # quiz | cards | tickets
+    recording_id: str | None = None
+    folder_id: str | None = None
+    tickets: str = ""
+    count: int = 10
+
+
+@app.post("/prepare")
+def prepare(body: PrepareIn, user_id: str = Depends(current_user)):
+    """Подготовка: тест, карточки или ответы на билеты — по записи, по полке или по всем записям."""
+    if body.kind not in llm.PREP_PROMPTS:
+        raise HTTPException(400, "Неизвестный вид подготовки")
+    if body.kind == "tickets" and not body.tickets.strip():
+        raise HTTPException(400, "Добавьте список билетов")
+    if body.recording_id:
+        rec, data = db.get_transcript_for_chat(body.recording_id, user_id)
+        if not rec or not data["segments"]:
+            raise HTTPException(404, "Запись не найдена или ещё обрабатывается")
+        materials = (f'=== «{rec["title"]}» ({rec["recorded_at"]:%d.%m.%Y}) ===\nИтог: {data["summary"] or ""}\n'
+                     + llm.format_transcript(data["segments"], rec.get("speaker_names") or {}))[:120000]
+    else:
+        recs, _ = db.library_for_chat(user_id, "", body.folder_id, limit=60)
+        if not recs:
+            raise HTTPException(404, "Нет готовых записей")
+        parts = []
+        for r in recs:
+            kp = "\n".join(f'- [{k.get("t") or ""}] {k.get("text", "")}' for k in (r.get("key_points") or []) if isinstance(k, dict))
+            parts.append(f'=== «{r["title"]}» ({r["recorded_at"]:%d.%m.%Y}) ===\n{r.get("summary") or ""}\n{kp}')
+        materials = "\n\n".join(parts)
+        if body.kind == "tickets":
+            # для билетов добавляем полные тексты, пока помещаются
+            for r in recs:
+                if len(materials) > 110000:
+                    break
+                segs = db.get_segments(r["id"])
+                materials += f'\n\n=== Расшифровка «{r["title"]}» ({r["recorded_at"]:%d.%m.%Y}) ===\n' + llm.format_transcript(
+                    segs, r.get("speaker_names") or {})
+        materials = materials[:120000]
+    profile = db.get_profile(user_id)
+    items = llm.prepare(body.kind, materials, max(3, min(body.count, 20)), body.tickets, profile["llm_provider"])
+    if not items:
+        raise HTTPException(502, "Мари не смогла подготовить материалы — попробуйте ещё раз")
+    return {"items": items}
+
+
 class ResummarizeIn(BaseModel):
     recording_id: str
     mode: str

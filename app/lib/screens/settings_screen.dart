@@ -105,9 +105,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               padding: const EdgeInsets.all(16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
-                  Expanded(child: Text(p.isPro ? 'Pro · 50 часов в месяц' : 'Бесплатно · 30 минут в месяц',
+                  Expanded(child: Text(p.isAdmin ? 'Тестирование · без лимита' : (p.isPro ? 'Pro · 50 часов в месяц' : 'Бесплатно · 30 минут в месяц'),
                       style: TextStyle(color: s.text, fontWeight: FontWeight.w700, fontSize: 16))),
-                  if (p.isAdmin) Text('без лимита', style: TextStyle(color: s.accentText, fontWeight: FontWeight.w700)),
                 ]),
                 const SizedBox(height: 12),
                 ClipRRect(

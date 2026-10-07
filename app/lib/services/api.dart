@@ -13,7 +13,7 @@ class Api {
         .post(Uri.parse('${AppConfig.apiUrl}$path'),
             headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
             body: jsonEncode(body))
-        .timeout(const Duration(minutes: 3));
+        .timeout(const Duration(minutes: 5));
     final data = jsonDecode(utf8.decode(r.bodyBytes));
     if (r.statusCode != 200) {
       throw Exception(data is Map && data['detail'] != null ? data['detail'] : 'Ошибка сервера ${r.statusCode}');
@@ -30,6 +30,19 @@ class Api {
       'history': history,
     });
     return d['answer'] as String;
+  }
+
+  /// Подготовка: kind = quiz | cards | tickets.
+  static Future<List<Map<String, dynamic>>> prepare(String kind,
+      {String? recordingId, String? folderId, String tickets = '', int count = 10}) async {
+    final d = await _post('/prepare', {
+      'kind': kind,
+      if (recordingId != null) 'recording_id': recordingId,
+      if (folderId != null) 'folder_id': folderId,
+      'tickets': tickets,
+      'count': count,
+    });
+    return List<Map<String, dynamic>>.from((d['items'] as List).map((e) => Map<String, dynamic>.from(e)));
   }
 
   /// Пересобрать итог в другом режиме (без повторной расшифровки).

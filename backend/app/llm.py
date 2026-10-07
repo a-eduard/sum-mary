@@ -86,6 +86,31 @@ def chat_library(question: str, history: list[dict], library: str, transcripts: 
     return text
 
 
+PREP_PROMPTS = {
+    "quiz": """Составь тест для самопроверки по материалам ниже: {n} вопросов с 4 вариантами ответа, один верный.
+Вопросы — по самому важному (определения, формулы, факты, то, что преподаватель подчеркнул). Варианты — правдоподобные.
+Верни СТРОГО JSON: {{"items": [{{"q": "вопрос", "options": ["a", "b", "c", "d"], "answer": 0, "explain": "почему так, 1–2 предложения", "source": "название записи и таймкод мм:сс или null"}}]}}""",
+    "cards": """Составь {n} карточек для запоминания по материалам ниже: на лицевой стороне — термин/вопрос/формула, на обороте — коротко ответ.
+Верни СТРОГО JSON: {{"items": [{{"front": "термин или вопрос", "back": "ответ, 1–3 предложения", "source": "название записи и таймкод или null"}}]}}""",
+    "tickets": """Пользователь готовится к экзамену. Вот список билетов/вопросов:
+{tickets}
+Для КАЖДОГО билета составь ответ ТОЛЬКО по материалам ниже — словами преподавателя, структурированно (3–10 предложений или пунктов).
+Если в материалах нет ответа — укажи found=false и коротко, что нужно взять из учебника.
+Верни СТРОГО JSON: {{"items": [{{"ticket": "текст билета", "found": true, "answer": "ответ", "sources": ["название записи (дата) мм:сс"]}}]}}""",
+}
+
+
+def prepare(kind: str, materials: str, n: int = 10, tickets: str = "", provider: str = "deepseek") -> list[dict]:
+    prompt = PREP_PROMPTS[kind].format(n=n, tickets=tickets) + "\nПиши по-русски. Только по материалам, ничего не выдумывай."
+    msgs = [{"role": "system", "content": prompt}, {"role": "user", "content": "МАТЕРИАЛЫ:\n\n" + materials}]
+    text, _ = _call(msgs, provider, json_mode=True, max_tokens=8000)
+    try:
+        items = _parse_json(text).get("items", [])
+    except Exception:
+        items = []
+    return [i for i in items if isinstance(i, dict)]
+
+
 def _call(messages, provider: str, json_mode: bool = False, max_tokens: int = 4000) -> tuple[str, str]:
     if provider == "yandex" and config.YC_LLM_API_KEY:
         model = f"gpt://{config.YC_FOLDER_ID}/{config.YC_LLM_MODEL}"

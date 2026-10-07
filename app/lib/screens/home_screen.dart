@@ -20,6 +20,7 @@ import '../widgets/folder_sheet.dart';
 import '../widgets/recording_tile.dart';
 import '../widgets/start_sheet.dart';
 import 'chat_screen.dart';
+import 'prepare_screen.dart';
 import 'record_screen.dart';
 import 'recording_screen.dart';
 import 'settings_screen.dart';
@@ -428,6 +429,19 @@ class _TodayPageState extends State<TodayPage> {
   }
 }
 
+/// Открывает тест по записи (запись подгружается по id).
+class _PrepareFor extends StatelessWidget {
+  final String recordingId;
+  const _PrepareFor({required this.recordingId});
+  @override
+  Widget build(BuildContext context) => StreamBuilder<Recording?>(
+        stream: Repo.recording(recordingId),
+        builder: (_, snap) => snap.data == null
+            ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+            : PrepareScreen(recording: snap.data, start: 'quiz'),
+      );
+}
+
 class _HeroEvent extends StatelessWidget {
   final EventItem event;
   final VoidCallback onOpen, onDismiss;
@@ -467,6 +481,13 @@ class _HeroEvent extends StatelessWidget {
         Text(event.title, style: TextStyle(color: s.text, fontSize: 17, fontWeight: FontWeight.w700, height: 1.3)),
         const SizedBox(height: 12),
         Wrap(spacing: 8, runSpacing: 8, children: [
+          if (event.kind == 'test' || event.kind == 'homework')
+            FilledButton(
+              onPressed: () => Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => _PrepareFor(recordingId: event.recordingId))),
+              style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
+              child: const Text('Повторить'),
+            ),
           FilledButton(
             onPressed: () => CalendarService.add(event),
             style: FilledButton.styleFrom(backgroundColor: s.invBg, foregroundColor: s.invText, minimumSize: const Size(0, 44)),
@@ -715,6 +736,12 @@ class RecordingsPageState extends State<RecordingsPage> {
               child: Text(_filterName(), maxLines: 1, overflow: TextOverflow.ellipsis, style: display(22, color: s.text)),
             ),
           ),
+          if (folder != null)
+            IconButton(
+              tooltip: 'Подготовка по полке',
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PrepareScreen(folder: folder))),
+              icon: Icon(Icons.school_outlined, color: s.text),
+            ),
           IconButton(
             tooltip: folder == null ? 'Спросить Мари по всем записям' : 'Спросить Мари по полке',
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(folder: folder))),

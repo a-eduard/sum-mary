@@ -4,6 +4,7 @@ import '../config.dart';
 import '../services/billing.dart';
 import '../services/repo.dart';
 import '../theme.dart';
+import '../widgets/mari_orb.dart';
 
 /// Экран подписки. Возвращает true, если подписка оформлена.
 class PaywallScreen extends StatefulWidget {
@@ -47,79 +48,108 @@ class _PaywallScreenState extends State<PaywallScreen> {
   }
 
   Widget _plan(String id, String title, String fallbackPrice, String note, {String? badge}) {
+    final s = context.sm;
     final sel = _selected == id;
-    return GestureDetector(
-      onTap: () => setState(() => _selected = id),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: context.sm.card,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: sel ? context.sm.accent : Colors.transparent, width: 2),
-        ),
-        child: Row(children: [
-          Icon(sel ? Icons.radio_button_checked : Icons.radio_button_off, color: context.sm.accent),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
-                if (badge != null) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(color: AppColors.record, borderRadius: BorderRadius.circular(8)),
-                    child: Text(badge, style: const TextStyle(fontSize: 12, color: Colors.white)),
-                  ),
-                ],
-              ]),
-              Text(note, style: TextStyle(color: context.sm.muted, fontSize: 13)),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: sel ? s.accent.withValues(alpha: context.isDark ? .18 : .1) : s.card,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22), side: BorderSide(color: sel ? s.accent : s.border, width: sel ? 2 : 1)),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22),
+          onTap: () => setState(() => _selected = id),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Row(children: [
+              Icon(sel ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded, color: sel ? s.accentText : s.muted),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    Text(title, style: TextStyle(color: s.text, fontSize: 17, fontWeight: FontWeight.w800)),
+                    if (badge != null) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(color: s.accent, borderRadius: BorderRadius.circular(8)),
+                        child: Text(badge, style: TextStyle(fontSize: 12, color: s.onAccent, fontWeight: FontWeight.w800)),
+                      ),
+                    ],
+                  ]),
+                  const SizedBox(height: 2),
+                  Text(note, style: TextStyle(color: s.muted, fontSize: 13)),
+                ]),
+              ),
+              Text(_prices[id] ?? fallbackPrice, style: display(17, color: s.text)),
             ]),
           ),
-          Text(_prices[id] ?? fallbackPrice, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        ]),
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final s = context.sm;
     const features = [
-      (Icons.timer_outlined, '50 часов записи в месяц'),
-      (Icons.people_outline, 'Расшифровка с разделением на спикеров'),
-      (Icons.auto_awesome, 'Резюме, решения и задачи от Мари'),
-      (Icons.chat_bubble_outline, 'Вопросы Мари по любой записи'),
-      (Icons.computer, 'Программа для Windows'),
+      (Icons.timer_outlined, '50 часов записи в месяц', 'Лекции, уроки, встречи и звонки'),
+      (Icons.auto_awesome_rounded, 'Цветной итог под каждый режим', 'Определения, формулы, важное, задачи'),
+      (Icons.chat_bubble_outline_rounded, 'Чат с Мари по всем записям', 'Ответы со ссылкой на момент записи'),
+      (Icons.event_available_rounded, 'Даты в календарь и напоминания', 'Контрольные, встречи, сроки'),
+      (Icons.people_outline_rounded, 'Разделение на спикеров', 'Кто что сказал и кому что поручили'),
     ];
     return Scaffold(
       appBar: AppBar(),
-      body: ListView(padding: const EdgeInsets.all(24), children: [
-        Icon(Icons.workspace_premium, size: 64, color: context.sm.accent),
+      body: ListView(padding: const EdgeInsets.fromLTRB(24, 0, 24, 32), children: [
+        const Center(child: MariOrb(size: 96)),
+        const SizedBox(height: 18),
+        Text('СамМари Pro', textAlign: TextAlign.center, style: display(28, color: s.text)),
+        const SizedBox(height: 6),
+        Text('Мари слушает — вы учитесь и работаете', textAlign: TextAlign.center, style: TextStyle(color: s.muted)),
+        const SizedBox(height: 22),
+        for (final (icon, title, sub) in features)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 14),
+            child: Row(children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(color: s.accent.withValues(alpha: .14), borderRadius: BorderRadius.circular(12)),
+                child: Icon(icon, color: s.accentText, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(title, style: TextStyle(color: s.text, fontWeight: FontWeight.w700)),
+                  Text(sub, style: TextStyle(color: s.muted, fontSize: 13)),
+                ]),
+              ),
+            ]),
+          ),
         const SizedBox(height: 12),
-        const Text('СамМари Pro', textAlign: TextAlign.center, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 16),
-        for (final (icon, text) in features)
-          ListTile(dense: true, leading: Icon(icon, color: context.sm.accent), title: Text(text)),
-        const SizedBox(height: 16),
         if (_loading)
           const Center(child: CircularProgressIndicator())
         else if (!Billing.supported)
-          const Text('Оформить подписку можно в Android-приложении из RuStore.', textAlign: TextAlign.center)
+          Text('Оформить подписку можно в Android-приложении из RuStore.', textAlign: TextAlign.center, style: TextStyle(color: s.muted))
         else if (!_available)
-          const Text('Покупки недоступны: установите RuStore и войдите в него.', textAlign: TextAlign.center)
+          Text('Покупки недоступны: установите RuStore и войдите в него.', textAlign: TextAlign.center, style: TextStyle(color: s.muted))
         else ...[
           _plan(AppConfig.proYearId, 'На год', '3 490 ₽', '≈ 290 ₽ в месяц', badge: '−40%'),
           _plan(AppConfig.proMonthId, 'На месяц', '490 ₽', 'Отмена в любой момент'),
           const SizedBox(height: 8),
-          FilledButton(
-            onPressed: _busy ? null : _buy,
-            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
-            child: _busy ? const CircularProgressIndicator() : const Text('Оформить подписку'),
+          SizedBox(
+            height: 58,
+            child: FilledButton(
+              onPressed: _busy ? null : _buy,
+              child: _busy
+                  ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Text('Оформить подписку'),
+            ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text('Подписка продлевается автоматически. Отменить можно в RuStore → Профиль → Подписки.',
-              textAlign: TextAlign.center, style: TextStyle(color: context.sm.muted, fontSize: 12)),
+              textAlign: TextAlign.center, style: TextStyle(color: s.muted, fontSize: 12)),
         ],
       ]),
     );
