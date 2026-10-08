@@ -84,9 +84,13 @@ class KeyPoint {
   final String kind;
   final int? tSec;
   KeyPoint.fromMap(Map<String, dynamic> m)
-      : text = '${m['text'] ?? ''}',
+      : text = _clean('${m['text'] ?? ''}'),
         kind = '${m['kind'] ?? 'note'}',
         tSec = (m['t_sec'] as num?)?.toInt();
+
+  /// Модель иногда сама пишет «Типичная ошибка: …» / «Важно: …» — приложение добавляет эти подписи само.
+  static String _clean(String t) =>
+      t.replaceFirst(RegExp(r'^\s*(типичная|частая)\s+ошибка\s*[:—–-]\s*|^\s*важно\s*[:!—–-]\s*', caseSensitive: false), '').trim();
 }
 
 /// Событие с датой, найденное в разговоре (контрольная, встреча, дедлайн).
