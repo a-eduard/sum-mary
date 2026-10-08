@@ -38,6 +38,10 @@ class _StartSheet extends StatefulWidget {
 class _StartSheetState extends State<_StartSheet> {
   late String _mode = widget.mode;
   String? _folder;
+  bool _allFolders = false;
+  bool _allModes = false;
+
+  List<String> get _roleIds => Repo.me.value?.roles ?? const [];
 
   String get _question => switch (_mode) {
         'lesson' => 'Какой урок?',
@@ -57,11 +61,16 @@ class _StartSheetState extends State<_StartSheet> {
     return ValueListenableBuilder<List<Folder>>(
       valueListenable: Repo.folders,
       builder: (context, folders, _) {
-        final study = _mode == 'lesson' || _mode == 'lecture' || _mode == 'seminar';
-        final sorted = [...folders]..sort((a, b) {
-            int w(Folder f) => study == (f.kind == 'subject') ? 0 : 1;
-            return w(a).compareTo(w(b));
-          });
+        // Уроку — предметы, встрече — рабочие полки. Остальные спрятаны под «Показать все полки».
+        final fit = folders.where((f) => folderFitsMode(f.kind, _mode)).toList();
+        final rest = folders.where((f) => !folderFitsMode(f.kind, _mode)).toList();
+        final shown = _allFolders || fit.isEmpty ? [...fit, ...rest] : fit;
+        // Типы записей: сначала типы ролей пользователя, остальные — по «Ещё».
+        final mine = quickModes(_roleIds);
+        final modes = [
+          ...recModes.where((x) => mine.contains(x.id) || x.id == _mode),
+          if (_allModes) ...recModes.where((x) => !mine.contains(x.id) && x.id != _mode),
+        ];
         Widget tile(String? id, String name, Widget lead) {
           final sel = _folder == id;
           return Padding(
@@ -96,7 +105,7 @@ class _StartSheetState extends State<_StartSheet> {
                 SizedBox(
                   height: 44,
                   child: ListView(scrollDirection: Axis.horizontal, children: [
-                    for (final x in recModes)
+                    for (final x in modes)
                       Padding(
                         padding: const EdgeInsets.only(right: 6),
                         child: ChoiceChip(
@@ -105,21 +114,35 @@ class _StartSheetState extends State<_StartSheet> {
                           selected: _mode == x.id,
                           showCheckmark: false,
                           labelStyle: TextStyle(color: _mode == x.id ? s.onAccent : s.text, fontWeight: FontWeight.w600),
-                          onSelected: (_) => setState(() => _mode = x.id),
+                          onSelected: (_) => setState(() {
+                            _mode = x.id;
+                            if (_folder != null && !folderFitsMode(folderById(_folder)?.kind, _mode)) _folder = null;
+                          }),
                         ),
+                      ),
+                    if (!_allModes && modes.length < recModes.length)
+                      ActionChip(
+                        avatar: Icon(Icons.more_horiz_rounded, size: 16, color: s.muted),
+                        label: const Text('Ещё'),
+                        onPressed: () => setState(() => _allModes = true),
                       ),
                   ]),
                 ),
                 const SizedBox(height: 14),
-                for (final f in sorted)
+                for (final f in shown)
                   tile(f.id, f.name, Container(width: 14, height: 14, decoration: BoxDecoration(color: hexColor(f.color), shape: BoxShape.circle))),
                 tile(null, 'Без полки — разберу потом', Icon(Icons.inbox_rounded, color: s.muted)),
+                if (!_allFolders && fit.isNotEmpty && rest.isNotEmpty)
+                  TextButton(
+                    onPressed: () => setState(() => _allFolders = true),
+                    child: Text('Показать все полки (${folders.length})', style: TextStyle(color: s.muted, fontWeight: FontWeight.w600)),
+                  ),
                 TextButton.icon(
                   onPressed: () async {
                     final name = await askFolderName(context);
                     if (name == null) return;
                     await Repo.addFolder(name, folderColors[Repo.folders.value.length % folderColors.length],
-                        kind: study ? 'subject' : 'other');
+                        kind: folderKindForMode(_mode, _roleIds));
                     final f = Repo.folders.value.where((x) => x.name == name).lastOrNull;
                     if (f != null && mounted) setState(() => _folder = f.id);
                   },

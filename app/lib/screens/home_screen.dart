@@ -320,6 +320,7 @@ class _TodayPageState extends State<TodayPage> {
   late Future<List<EventItem>> _events = Repo.upcomingEvents();
   String? _name;
   bool _askName = false;
+  List<String> _quick = quickModes(Repo.me.value?.roles ?? const []);
   final _nameCtrl = TextEditingController();
 
   void _onMe() {
@@ -329,6 +330,7 @@ class _TodayPageState extends State<TodayPage> {
     setState(() {
       _name = n.isEmpty ? null : n;
       _askName = n.isEmpty;
+      _quick = quickModes(p.roles);
     });
   }
 
@@ -469,11 +471,10 @@ class _TodayPageState extends State<TodayPage> {
           ),
         ),
         const SizedBox(height: 14),
+        // Быстрые кнопки — под роли пользователя: школьнику «Урок», HR — «Собеседование» и т. д.
         Row(children: [
-          quick('Урок', () => widget.onRecord('lesson'), primary: true),
-          quick('Лекция', () => widget.onRecord('lecture')),
-          quick('Встреча', () => widget.onRecord('meeting')),
-          quick('Звонок', widget.onImportCall),
+          for (final (i, id) in _quick.indexed)
+            quick(modeById(id).label, id == 'call' ? widget.onImportCall : () => widget.onRecord(id), primary: i == 0),
         ]),
         FutureBuilder<List<EventItem>>(
           future: _events,

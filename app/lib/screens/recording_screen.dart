@@ -220,6 +220,21 @@ class _ReadyViewState extends State<_ReadyView> {
         await _load();
       });
 
+  /// Запись обработана без фото доски (старая версия или фото не успели загрузиться) — догружаем и пересобираем итог.
+  Future<void> _addPhotos() async {
+    setState(() {
+      _loading = true;
+      _busy = 'Мари смотрит на фото доски\nи дополняет конспект…\nОбычно это 1–2 минуты';
+    });
+    try {
+      await Repo.uploadPhotos(r.id);
+      await Api.resummarize(r.id, r.mode == 'auto' ? 'lecture' : r.mode);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Не получилось: $e')));
+    }
+    await _load();
+  }
+
   void _pdf() {
     final s = context.sm;
     if (_summary == null) return;
@@ -360,7 +375,7 @@ class _ReadyViewState extends State<_ReadyView> {
                 SliverToBoxAdapter(child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Row(children: [
+                    Wrap(spacing: 0, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
                         decoration: BoxDecoration(color: modeById(r.mode).color, borderRadius: BorderRadius.circular(99)),
@@ -396,6 +411,8 @@ class _ReadyViewState extends State<_ReadyView> {
                     _Action(Icons.ios_share_rounded, 'Поделиться', () => Share.share(_summaryText())),
                   ]),
                 )),
+                if (r.pendingPhotos > 0 && r.marks.any((m) => m['type'] == 'photo' && LocalFiles.exists(m['path'] as String?)))
+                  SliverToBoxAdapter(child: _PhotosBanner(count: r.pendingPhotos, onTap: _addPhotos)),
                 if (r.folderId == null && folderById(r.suggestedFolderId) != null)
                   SliverToBoxAdapter(child: _SuggestBanner(r: r, folder: folderById(r.suggestedFolderId)!)),
                 SliverPersistentHeader(
@@ -421,6 +438,39 @@ class _ReadyViewState extends State<_ReadyView> {
                 ]),
               ),
         bottomNavigationBar: hasAudio ? AudioPlayerBar(path: r.localAudio!, controller: _player) : null,
+      ),
+    );
+  }
+}
+
+class _PhotosBanner extends StatelessWidget {
+  final int count;
+  final VoidCallback onTap;
+  const _PhotosBanner({required this.count, required this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    final s = context.sm;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Material(
+        color: s.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: BorderSide(color: s.heroBorder)),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+            child: Row(children: [
+              Icon(Icons.photo_library_rounded, color: s.teal),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text('Добавить $count фото доски в конспект',
+                    style: TextStyle(color: s.text, fontSize: 14, fontWeight: FontWeight.w600)),
+              ),
+              Icon(Icons.chevron_right_rounded, color: s.muted),
+            ]),
+          ),
+        ),
       ),
     );
   }
@@ -562,7 +612,7 @@ class _SummaryTab extends StatelessWidget {
     );
   }
 
-  Widget _section(BuildContext context, String title, List<String> items) => Padding(
+  Widget _section(BuildContext context, String title, List<String> items, {List<Figure> figures = const []}) => Padding(
         padding: const EdgeInsets.only(top: 20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(title, style: display(14, color: context.sm.muted, weight: FontWeight.w500)),
@@ -572,9 +622,10 @@ class _SummaryTab extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 6),
               child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('•  ', style: TextStyle(color: context.sm.accent)),
-                Expanded(child: Text(i, style: const TextStyle(height: 1.4))),
+                Expanded(child: SelectableText(i, style: TextStyle(height: 1.45, fontSize: 15, color: context.sm.text))),
               ]),
             ),
+          for (final f in figures) _FigureCard(f: f, onSeek: onSeek),
         ]),
       );
 
@@ -643,13 +694,107 @@ class _SummaryTab extends StatelessWidget {
           ]),
         ),
       ],
-      for (final (t, items) in s.sections) _section(context, t, items),
+      for (final (t, items) in s.sections)
+        _section(context, t, items, figures: s.figures.where((f) => f.section == t).toList()),
+      if (s.figures.any((f) => !s.sections.any((x) => x.$1 == f.section))) ...[
+        const SizedBox(height: 20),
+        Text('С доски', style: display(14, color: c.muted, weight: FontWeight.w500)),
+        for (final f in s.figures.where((f) => !s.sections.any((x) => x.$1 == f.section))) _FigureCard(f: f, onSeek: onSeek),
+      ],
       if (s.decisions.isNotEmpty) _section(context, 'Решения', s.decisions),
       if (s.responsibilities.isNotEmpty)
         _section(context, 'Кто за что отвечает', s.responsibilities.map((e) => '${e['person']} — ${e['area']}').toList()),
       if (s.openQuestions.isNotEmpty) _section(context, 'Открытые вопросы', s.openQuestions),
     ]);
   }
+}
+
+/// Фото доски в конспекте: картинка из хранилища, подпись Мари, время. Нажатие — во весь экран.
+class _FigureCard extends StatelessWidget {
+  final Figure f;
+  final void Function(int ms)? onSeek;
+  const _FigureCard({required this.f, this.onSeek});
+
+  static final _urls = <String, Future<String?>>{};
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.sm;
+    final url = _urls.putIfAbsent(f.key!, () => Repo.photoUrl(f.key!));
+    return Container(
+      margin: const EdgeInsets.only(top: 10, bottom: 6),
+      decoration: BoxDecoration(color: s.card, borderRadius: BorderRadius.circular(18), border: Border.all(color: s.border)),
+      clipBehavior: Clip.antiAlias,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        FutureBuilder<String?>(
+          future: url,
+          builder: (context, snap) {
+            final u = snap.data;
+            if (u == null) {
+              return AspectRatio(
+                aspectRatio: 4 / 3,
+                child: Center(
+                  child: snap.connectionState == ConnectionState.done
+                      ? Icon(Icons.image_not_supported_outlined, color: s.muted)
+                      : const CircularProgressIndicator(strokeWidth: 2),
+                ),
+              );
+            }
+            return GestureDetector(
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _PhotoViewer(url: u, caption: f.caption))),
+              child: Hero(
+                tag: f.key!,
+                child: Image.network(u, fit: BoxFit.cover, height: 220,
+                    errorBuilder: (_, __, ___) => SizedBox(height: 120, child: Icon(Icons.broken_image_outlined, color: s.muted))),
+              ),
+            );
+          },
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(Icons.photo_camera_rounded, size: 16, color: s.teal),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(f.caption.isEmpty ? 'Фото доски' : f.caption,
+                  style: TextStyle(color: s.text, fontSize: 14, height: 1.35)),
+            ),
+            if (f.tSec != null)
+              InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: onSeek == null ? null : () => onSeek!(f.tSec! * 1000),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  child: Text(fmtDuration(f.tSec), style: TextStyle(color: s.accentText, fontSize: 12, fontWeight: FontWeight.w700)),
+                ),
+              ),
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
+class _PhotoViewer extends StatelessWidget {
+  final String url;
+  final String caption;
+  const _PhotoViewer({required this.url, required this.caption});
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white),
+        body: Column(children: [
+          Expanded(child: InteractiveViewer(maxScale: 5, child: Center(child: Image.network(url)))),
+          if (caption.isNotEmpty)
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(caption, style: const TextStyle(color: Colors.white, height: 1.4)),
+              ),
+            ),
+        ]),
+      );
 }
 
 class _TranscriptTab extends StatelessWidget {

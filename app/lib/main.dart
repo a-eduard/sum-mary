@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -14,6 +15,8 @@ import 'theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Приложение — диктофон в кармане: только вертикальная ориентация.
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   await initializeDateFormatting('ru');
   await ThemeController.load();
   await Notifications.init();
@@ -86,7 +89,9 @@ class _SignedInState extends State<_SignedIn> {
         builder: (context, snap) {
           if (!snap.hasData) return const Scaffold(body: Center(child: CircularProgressIndicator()));
           if (snap.data == false) {
-            return OnboardingScreen(onDone: () => setState(() => _onboarded = Future.value(true)));
+            return OnboardingScreen(onDone: () => setState(() {
+                  _onboarded = Future.value(true);
+                }));
           }
           return const HomeScreen();
         },

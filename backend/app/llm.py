@@ -14,6 +14,7 @@ SUMMARY_PROMPT = """Ты — Мари, ИИ-ассистент приложен�
 {marks}
 {folders}
 {user}
+{photos}
 Верни СТРОГО JSON без пояснений, такого вида:
 {{
   "title": "название записи, до 8 слов",
@@ -27,22 +28,30 @@ SUMMARY_PROMPT = """Ты — Мари, ИИ-ассистент приложен�
   "explanations": [{{"t": "мм:сс", "topic": "что было непонятно", "answer": "объяснение простыми словами"}}],
   "responsibilities": [{{"person": "имя", "area": "за что отвечает"}}],
   "open_questions": ["вопрос", ...],
-  "term_fixes": [{{"from": "как распознано", "to": "как правильно"}}]
+  "term_fixes": [{{"from": "как распознано", "to": "как правильно"}}],
+  "figures": [{{"photo": 1, "caption": "что на фото, одно предложение", "section": "название раздела из sections или null"}}]
 }}
 Правила:
 - Только факты из расшифровки, ничего не выдумывай. Нет данных — пустой список или null.
 - "t" — таймкод из расшифровки, где это прозвучало (формат мм:сс или ч:мм:сс). Обязательно для key_points, tasks, events.
-- key_points: 3–12 самых важных пунктов. kind: definition — определение термина; formula — формула (пиши в одну строку обычными символами: ∫, √, ², ≤); example — разобранный пример; important — то, что подчеркнули как важное («будет на контрольной», «обратите внимание»); mistake — типичная ошибка; note — прочее.
+- key_points: {kp_count} самых важных пунктов. kind: definition — определение термина; formula — формула (пиши в одну строку обычными символами: ∫, √, ², ≤, λ, θ; степени — так: 10⁻¹⁹ или 10^(-19); без LaTeX и без $); example — разобранный пример; important — то, что подчеркнули как важное («будет на контрольной», «обратите внимание»); mistake — типичная ошибка; note — прочее.
 - tasks — только реальные договорённости, поручения, домашние задания. for_me = true, если задачу поручили пользователю приложения (обратились к нему по имени) или он сам пообещал её сделать; домашнее задание на уроке/лекции — тоже for_me = true; иначе false.
 - events — только конкретные даты событий (контрольная, экзамен, встреча, созвон, дедлайн, сдача ДЗ). Без даты — не включай.
 - explanations — только для моментов, отмеченных пользователем как «Не понял». Объясни простыми словами, опираясь на расшифровку; если используешь общие знания — это допустимо, но не противоречь сказанному.
 - term_fixes — только явные ошибки распознавания названий, брендов, IT-терминов и англоязычных слов. "from" должен дословно встречаться в тексте.
+- figures — только если выше даны фото доски/слайдов: по одному элементу на каждое фото (photo — его номер).
 - Пиши по-русски (термины — в оригинальном написании)."""
 
+# Учебные записи: полноценный конспект по разделам, а не список заголовков.
+STUDY_OUTLINE = (" sections — КОНСПЕКТ по разделам в порядке изложения: title — тема раздела, items — 3–8 содержательных пунктов "
+                 "раздела (что именно сказано: определения, формулы, выводы, условия применимости, примеры с ответами, графики "
+                 "и что они показывают). Не пиши пункты-заголовки без содержания. Конспект должен быть полным: по нему можно "
+                 "подготовиться, не слушая запись. Мелочи организационной части сократи до одного раздела.")
+
 MODES = {
-    "lesson": ("школьный урок", "Это урок в школе. sections: «Домашнее задание», «Что будет на контрольной» (если прозвучало), «Новые термины». В key_points — определения, формулы, разобранные примеры, важное от учителя. Спикер, который объясняет, — учитель."),
-    "lecture": ("лекция", "Это лекция в вузе. sections: «План лекции» (темы по порядку), «Литература» (если называли), «Вопросы к экзамену» (если прозвучали). В key_points — определения, формулы, теоремы, примеры, акценты преподавателя."),
-    "seminar": ("семинар", "Это семинар. sections: «Разобранные задачи», «Кто что отвечал», «Задано». decisions обычно пустые."),
+    "lesson": ("школьный урок", "Это урок в школе." + STUDY_OUTLINE + " После конспекта добавь разделы «Домашнее задание» и «Что будет на контрольной» (если прозвучало). В key_points — определения, формулы, разобранные примеры, важное от учителя. Спикер, который объясняет, — учитель."),
+    "lecture": ("лекция", "Это лекция в вузе." + STUDY_OUTLINE + " После конспекта — разделы «Литература» (если называли) и «Вопросы к экзамену» (если прозвучали). В key_points — определения, формулы, теоремы, законы, примеры, акценты преподавателя."),
+    "seminar": ("семинар", "Это семинар." + STUDY_OUTLINE + " Для разобранных задач пиши условие, ход решения и ответ. После — разделы «Кто что отвечал» и «Задано». decisions обычно пустые."),
     "meeting": ("рабочая встреча", "sections: «Ключевые темы», «Риски» (если были). Основное — решения, задачи с ответственными и сроками."),
     "call": ("телефонный звонок", "sections: «О чём договорились», «Следующий шаг». Будь краток."),
     "interview": ("собеседование", "Это собеседование с кандидатом. sections: «Опыт кандидата», «Сильные стороны», «Слабые стороны и риски», «Ответы на ключевые вопросы», «Вопросы кандидата». В summary — общее впечатление без оценочных суждений о личности, только по фактам из разговора."),
@@ -185,8 +194,24 @@ def parse_t(v) -> int | None:
 
 def summarize(transcript: str, vocabulary: list[str], provider: str = "deepseek", mode: str = "meeting",
               marks: list[dict] | None = None, recorded_at=None, folders: list[str] | None = None,
-              user_names: list[str] | None = None) -> tuple[dict, str]:
+              user_names: list[str] | None = None, photos: list[dict] | None = None,
+              duration_sec: int | None = None) -> tuple[dict, str]:
+    """photos: [{"n": 1, "t": сек, "text": "что распознано на фото"}]."""
     from datetime import datetime
+    # Сколько пунктов «главного»: учебным записям — по длине (≈ пункт на 2 минуты), остальным — 3–12.
+    minutes = max(1, (duration_sec or 0) // 60)
+    if mode in ("lesson", "lecture", "seminar", "tutor"):
+        lo = max(6, min(30, minutes // 3))
+        kp_count = f"{lo}–{max(lo + 4, min(40, minutes // 2))}"
+    else:
+        kp_count = "3–12"
+    photos_text = ""
+    if photos:
+        photos_text = ("Пользователь сфотографировал доску/слайды. Содержимое фото (распознано автоматически):\n"
+                       + "\n".join(f"[{_fmt_t(int(p.get('t') or 0))}] Фото {p['n']}: {p.get('text', '').strip()}" for p in photos)
+                       + "\nОбязательно используй фото: формулы, схемы и графики с доски включи в конспект в соответствующие "
+                         "разделы (опиши график: что по осям, какая зависимость, вывод). Если фото противоречит расшифровке "
+                         "в записи формулы — верь фото.")
     vocab = ""
     if vocabulary:
         vocab = "Словарь пользователя (правильное написание терминов, имён и названий): " + ", ".join(vocabulary)
@@ -213,16 +238,17 @@ def summarize(transcript: str, vocabulary: list[str], provider: str = "deepseek"
         user_text = (f"Пользователь приложения (тот, кто записывает): {names[0]}. К нему могут обращаться так: "
                      + ", ".join(names) + ". Если в записи кто-то из спикеров явно он — подпиши в задачах его имя.")
     prompt = SUMMARY_PROMPT.format(mode_name=mode_name, mode_rules=mode_rules, vocab=vocab, marks=marks_text, folders=folders_text,
-                                   user=user_text, recorded=rec.strftime("%Y-%m-%d %H:%M"), weekday=WEEKDAYS[rec.weekday()])
+                                   user=user_text, photos=photos_text, kp_count=kp_count,
+                                   recorded=rec.strftime("%Y-%m-%d %H:%M"), weekday=WEEKDAYS[rec.weekday()])
     msgs = [{"role": "system", "content": prompt},
             {"role": "user", "content": "Расшифровка:\n\n" + transcript}]
-    text, model = _call(msgs, provider, json_mode=True, max_tokens=6000)
+    text, model = _call(msgs, provider, json_mode=True, max_tokens=8000)
     try:
         data = _parse_json(text)
     except Exception:
         data = {"summary": text}
     for k in ("key_points", "sections", "decisions", "tasks", "events", "explanations",
-              "responsibilities", "open_questions", "term_fixes"):
+              "responsibilities", "open_questions", "term_fixes", "figures"):
         if not isinstance(data.get(k), list):
             data[k] = []
     for k in ("key_points", "tasks", "events", "explanations"):
@@ -230,6 +256,12 @@ def summarize(transcript: str, vocabulary: list[str], provider: str = "deepseek"
             if isinstance(it, dict):
                 it["t_sec"] = parse_t(it.get("t"))
     data["events"] = [e for e in data["events"] if isinstance(e, dict) and e.get("date") and e.get("title")]
+    # Фото: подпись от модели + путь в хранилище и время съёмки. Фото без подписи тоже показываем.
+    by_n = {p["n"]: p for p in (photos or [])}
+    caps = {f.get("photo"): f for f in data["figures"] if isinstance(f, dict)}
+    data["figures"] = [{"n": n, "key": p.get("key"), "t_sec": p.get("t"),
+                        "caption": (caps.get(n) or {}).get("caption") or "",
+                        "section": (caps.get(n) or {}).get("section")} for n, p in sorted(by_n.items())]
     return data, model
 
 

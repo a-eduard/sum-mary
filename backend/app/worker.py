@@ -7,7 +7,7 @@ import traceback
 from datetime import timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from . import config, db, pipeline, storage
+from . import config, db, pipeline, storage, vision
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("worker")
@@ -46,11 +46,16 @@ def handle(rec):
         off = rec.get("tz_offset_min")
         tz = timezone(timedelta(minutes=off)) if off is not None else ZoneInfo("Europe/Moscow")
         tz_rec = rec["recorded_at"].astimezone(tz).replace(tzinfo=None)
+        marks = rec.get("marks") or []
+        # Фото доски распознаём заранее (параллельно), текст сохраняем в marks — для «Сменить тип записи».
+        photos, changed = vision.read_photos(marks)
+        if changed:
+            db.set_marks(rid, marks)
         out = pipeline.process_file(src, db.get_vocabulary(rec["user_id"]), profile["llm_provider"],
                                     on_stage=lambda s: db.set_stage(rid, s), mode=rec.get("mode") or "meeting",
-                                    marks=rec.get("marks") or [], recorded_at=tz_rec,
+                                    marks=marks, recorded_at=tz_rec,
                                     folders=[f["name"] for f in db.get_folders(rec["user_id"])],
-                                    user_names=user_names(profile))
+                                    user_names=user_names(profile), photos=photos)
     db.save_results(rec, out["duration_sec"], out["segments"], out["result"], out["model"], mode=out.get("mode"))
     try:
         storage.delete(rec["audio_path"])

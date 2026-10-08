@@ -169,12 +169,18 @@ def resummarize(body: ResummarizeIn, user_id: str = Depends(current_user)):
     off = rec.get("tz_offset_min")
     tz = timezone(timedelta(minutes=off)) if off is not None else ZoneInfo("Europe/Moscow")
     profile = db.get_profile(user_id)
+    from . import vision
+    marks = rec.get("marks") or []
+    photos, changed = vision.read_photos(marks)  # уже распознанные фото берутся из marks
+    if changed:
+        db.set_marks(rec["id"], marks)
     result, model = llm.summarize(
         llm.format_transcript(data["segments"], rec.get("speaker_names") or {}), db.get_vocabulary(user_id),
-        profile["llm_provider"], mode=body.mode, marks=rec.get("marks") or [],
+        profile["llm_provider"], mode=body.mode, marks=marks,
         recorded_at=rec["recorded_at"].astimezone(tz).replace(tzinfo=None),
         folders=[f["name"] for f in db.get_folders(user_id)],
-        user_names=[n for n in [profile.get("display_name"), *(profile.get("name_aliases") or [])] if n])
+        user_names=[n for n in [profile.get("display_name"), *(profile.get("name_aliases") or [])] if n],
+        photos=photos, duration_sec=rec.get("duration_sec"))
     db.save_summary(rec, result, model, body.mode)
     return {"ok": True}
 

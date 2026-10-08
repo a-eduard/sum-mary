@@ -10,7 +10,8 @@ log = logging.getLogger("pipeline")
 
 def process_file(path: str, vocabulary: list[str] | None = None, provider: str = "deepseek",
                  on_stage=lambda s: None, mode: str = "meeting", marks: list[dict] | None = None,
-                 recorded_at=None, folders: list[str] | None = None, user_names: list[str] | None = None) -> dict:
+                 recorded_at=None, folders: list[str] | None = None, user_names: list[str] | None = None,
+                 photos: list[dict] | None = None) -> dict:
     """Обрабатывает локальный аудиофайл. Используется и worker'ом, и локальным тестом."""
     with tempfile.TemporaryDirectory() as td:
         wav_path = os.path.join(td, "a.wav")
@@ -33,7 +34,7 @@ def process_file(path: str, vocabulary: list[str] | None = None, provider: str =
     if segs:
         result, model = llm.summarize(llm.format_transcript(segs), vocabulary or [], provider,
                                       mode=mode, marks=marks, recorded_at=recorded_at, folders=folders,
-                                      user_names=user_names)
+                                      user_names=user_names, photos=photos, duration_sec=dur)
         segs = llm.apply_term_fixes(segs, result.get("term_fixes", []))
     else:
         result, model = {"title": "Речи не слышно",

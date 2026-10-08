@@ -195,6 +195,35 @@ class Repo {
     return p;
   }
 
+  // ---------- фото доски ----------
+  /// Загружает фото из marks записи в бакет photos и сохраняет в marks путь (key).
+  static Future<void> uploadPhotos(String recordingId) async {
+    final row = await sb.from('recordings').select('marks').eq('id', recordingId).maybeSingle();
+    final marks = [for (final m in (row?['marks'] as List? ?? [])) Map<String, dynamic>.from(m)];
+    var n = 0, changed = false;
+    for (final m in marks) {
+      if (m['type'] != 'photo') continue;
+      n++;
+      final path = m['path'] as String?;
+      if (m['key'] != null || path == null || !File(path).existsSync()) continue;
+      final key = '$uid/$recordingId/$n.jpg';
+      await sb.storage.from('photos').upload(key, File(path),
+          fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: true));
+      m['key'] = key;
+      changed = true;
+    }
+    if (changed) await sb.from('recordings').update({'marks': marks}).eq('id', recordingId);
+  }
+
+  /// Ссылка на фото: локальный файл, если он ещё на телефоне, иначе временная ссылка из хранилища.
+  static Future<String?> photoUrl(String key) async {
+    try {
+      return await sb.storage.from('photos').createSignedUrl(key, 3600);
+    } catch (_) {
+      return null;
+    }
+  }
+
   // ---------- поддержка ----------
   static Stream<List<SupportMsg>> support() => _live(() => sb
       .from('support_messages')

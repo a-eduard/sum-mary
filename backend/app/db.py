@@ -51,6 +51,12 @@ def set_stage(rec_id, stage: str):
         c.commit()
 
 
+def set_marks(rec_id, marks: list[dict]):
+    with conn() as c:
+        c.execute("update public.recordings set marks=%s where id=%s", (json.dumps(marks, ensure_ascii=False), rec_id))
+        c.commit()
+
+
 def set_status(rec_id, status: str, error: str | None = None):
     with conn() as c:
         c.execute(
@@ -104,16 +110,19 @@ def _write_summary(c, rec, result: dict, model: str):
     c.execute(
         """
         insert into public.summaries (recording_id, user_id, summary, decisions, open_questions,
-                                      responsibilities, term_fixes, model, key_points, sections, events, explanations)
-        values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                                      responsibilities, term_fixes, model, key_points, sections, events, explanations,
+                                      figures)
+        values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         on conflict (recording_id) do update set summary=excluded.summary, decisions=excluded.decisions,
           open_questions=excluded.open_questions, responsibilities=excluded.responsibilities,
           term_fixes=excluded.term_fixes, model=excluded.model, key_points=excluded.key_points,
-          sections=excluded.sections, events=excluded.events, explanations=excluded.explanations, created_at=now()
+          sections=excluded.sections, events=excluded.events, explanations=excluded.explanations,
+          figures=excluded.figures, created_at=now()
         """,
         (rid, uid, result.get("summary", ""), _j(result, "decisions"), _j(result, "open_questions"),
          _j(result, "responsibilities"), _j(result, "term_fixes"), model,
-         _j(result, "key_points"), _j(result, "sections"), _j(result, "events"), _j(result, "explanations")),
+         _j(result, "key_points"), _j(result, "sections"), _j(result, "events"), _j(result, "explanations"),
+         _j(result, "figures")),
     )
     c.execute("delete from public.tasks where recording_id=%s", (rid,))
     for t in result.get("tasks", []):

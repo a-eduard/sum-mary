@@ -5,8 +5,11 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import 'package:http/http.dart' as http;
+
 import '../models.dart';
 import '../modes.dart';
+import 'repo.dart';
 
 /// Шаблоны PDF-конспекта.
 enum PdfTemplate { notes, cheat, full }
@@ -41,9 +44,40 @@ class PdfExport {
     final cheat = t == PdfTemplate.cheat;
     final base = cheat ? 8.5 : 11.0;
     final doc = pw.Document(title: r.title, author: 'СамМари');
-    final theme = pw.ThemeData.withFont(base: regular, bold: bold, italic: italic);
+    // Запасные шрифты: верхние индексы (10⁻¹⁹), ∫, ≈, λ и прочие символы, которых нет в Manrope.
+    final fallback = [await PdfGoogleFonts.notoSansRegular(), await PdfGoogleFonts.notoSansMathRegular()];
+    final theme = pw.ThemeData.withFont(base: regular, bold: bold, italic: italic, fontFallback: fallback);
     final mode = modeById(r.mode);
     final date = DateFormat('d MMMM y, HH:mm', 'ru').format(r.recordedAt);
+
+    // Фото доски (в шпаргалку не кладём — она на одну страницу).
+    final figImgs = <String, pw.MemoryImage>{};
+    if (!cheat) {
+      await Future.wait(s.figures.map((f) async {
+        try {
+          final u = await Repo.photoUrl(f.key!);
+          if (u == null) return;
+          final res = await http.get(Uri.parse(u)).timeout(const Duration(seconds: 20));
+          if (res.statusCode == 200) figImgs[f.key!] = pw.MemoryImage(res.bodyBytes);
+        } catch (_) {}
+      }));
+    }
+    List<pw.Widget> figs(Iterable<Figure> list) => [
+          for (final f in list)
+            if (figImgs[f.key] != null)
+              pw.Padding(
+                padding: const pw.EdgeInsets.only(top: 6, bottom: 8),
+                child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+                  pw.ClipRRect(horizontalRadius: 6, verticalRadius: 6,
+                      child: pw.Image(figImgs[f.key]!, height: 210, fit: pw.BoxFit.contain)),
+                  if (f.caption.isNotEmpty)
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.only(top: 4),
+                      child: pw.Text('${f.caption}${f.tSec == null ? '' : '  ${fmtDuration(f.tSec)}'}', style: pw.TextStyle(color: _muted, fontSize: base - 1.5)),
+                    ),
+                ]),
+              ),
+        ];
 
     pw.Widget h(String text) => pw.Padding(
           padding: pw.EdgeInsets.only(top: cheat ? 6 : 14, bottom: cheat ? 3 : 6),
@@ -122,7 +156,16 @@ class PdfExport {
             ]),
           ),
       ],
-      for (final (title, items) in s.sections) if (!cheat || title.toLowerCase().contains('контрольн')) ...[h(title), bullets(items)],
+      for (final (title, items) in s.sections)
+        if (!cheat || title.toLowerCase().contains('контрольн')) ...[
+          h(title),
+          bullets(items),
+          ...figs(s.figures.where((f) => f.section == title)),
+        ],
+      if (s.figures.any((f) => !s.sections.any((x) => x.$1 == f.section)) && figImgs.isNotEmpty) ...[
+        h('С доски'),
+        ...figs(s.figures.where((f) => !s.sections.any((x) => x.$1 == f.section))),
+      ],
       if (s.events.isNotEmpty) ...[
         h('Даты'),
         bullets([for (final e in s.events) '${e.title} — ${DateFormat('d MMMM', 'ru').format(e.date)}${e.time == null ? '' : ', ${e.time}'}']),
@@ -133,15 +176,19 @@ class PdfExport {
 
     if (t == PdfTemplate.full && segs.isNotEmpty) {
       body.add(h('Расшифровка'));
+      // Реплика лекции может длиться полчаса — режем на абзацы, которые переносятся между страницами.
       for (final turn in groupTurns(segs)) {
         body.add(pw.Padding(
-          padding: const pw.EdgeInsets.only(bottom: 6),
+          padding: const pw.EdgeInsets.only(top: 4, bottom: 2),
           child: pw.RichText(text: pw.TextSpan(children: [
             pw.TextSpan(text: '${r.speakerName(turn.speaker)}  ', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: _violet, fontSize: base - 1)),
-            pw.TextSpan(text: '${fmtMs(turn.startMs)}\n', style: pw.TextStyle(color: _muted, fontSize: base - 2)),
-            pw.TextSpan(text: turn.text, style: pw.TextStyle(fontSize: base - .5)),
+            pw.TextSpan(text: fmtMs(turn.startMs), style: pw.TextStyle(color: _muted, fontSize: base - 2)),
           ])),
         ));
+        for (final chunk in _chunks(turn.text)) {
+          body.add(pw.Paragraph(text: chunk, style: pw.TextStyle(fontSize: base - .5, lineSpacing: 1.5),
+              margin: const pw.EdgeInsets.only(bottom: 4)));
+        }
       }
     }
 
@@ -156,6 +203,33 @@ class PdfExport {
       build: (_) => body,
     ));
     return doc.save();
+  }
+
+  /// Делит длинный текст на абзацы ~700 символов по границам предложений.
+  static List<String> _chunks(String text, {int max = 700}) {
+    final sentences = text.split(RegExp(r'(?<=[.!?…])\s+'));
+    final out = <String>[];
+    var cur = StringBuffer();
+    for (final s in sentences) {
+      if (cur.length > 0 && cur.length + s.length > max) {
+        out.add(cur.toString().trim());
+        cur = StringBuffer();
+      }
+      // одно «предложение» без точек длиннее лимита — режем по словам
+      if (s.length > max) {
+        for (final w in s.split(' ')) {
+          if (cur.length + w.length > max) {
+            out.add(cur.toString().trim());
+            cur = StringBuffer();
+          }
+          cur.write('$w ');
+        }
+      } else {
+        cur.write('$s ');
+      }
+    }
+    if (cur.toString().trim().isNotEmpty) out.add(cur.toString().trim());
+    return out;
   }
 
   static String fileName(Recording r, PdfTemplate t) {

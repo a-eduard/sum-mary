@@ -14,6 +14,10 @@ class Recording {
   final bool favorite;
   final DateTime recordedAt;
   final DateTime? processedAt;
+  final List<Map<String, dynamic>> marks;
+
+  /// Фото доски, которые есть на телефоне, но ещё не загружены (запись обработана без них).
+  int get pendingPhotos => marks.where((m) => m['type'] == 'photo' && m['key'] == null && m['path'] != null).length;
 
   Recording.fromMap(Map<String, dynamic> m)
       : id = m['id'],
@@ -30,7 +34,8 @@ class Recording {
         suggestedFolderId = m['suggested_folder_id'],
         favorite = m['favorite'] ?? false,
         recordedAt = DateTime.parse(m['recorded_at']).toLocal(),
-        processedAt = m['processed_at'] == null ? null : DateTime.parse(m['processed_at']).toLocal();
+        processedAt = m['processed_at'] == null ? null : DateTime.parse(m['processed_at']).toLocal(),
+        marks = [for (final x in (m['marks'] as List? ?? [])) if (x is Map) Map<String, dynamic>.from(x)];
 
   bool get isReady => status == 'ready';
   bool get inProgress => status == 'uploading' || status == 'queued' || status == 'processing';
@@ -115,6 +120,7 @@ class Summary {
   final List<(String, List<String>)> sections;
   final List<Map<String, dynamic>> explanations;
   final List<EventItem> events;
+  final List<Figure> figures;
 
   static List<Map<String, dynamic>> _maps(dynamic v) =>
       List<Map<String, dynamic>>.from((v ?? []).whereType<Map>().map((e) => Map<String, dynamic>.from(e)));
@@ -130,6 +136,7 @@ class Summary {
             .where((e) => e.$2.isNotEmpty)
             .toList(),
         explanations = _maps(m['explanations']),
+        figures = _maps(m['figures']).map(Figure.fromMap).where((f) => f.key != null).toList(),
         events = _maps(m['events']).map((e) {
           try {
             return EventItem.fromMap(e, '${m['recording_id']}');
@@ -230,4 +237,19 @@ class SupportMsg {
         text = '${m['text'] ?? ''}',
         createdAt = DateTime.parse(m['created_at']).toLocal(),
         readAt = m['read_at'] == null ? null : DateTime.parse(m['read_at']).toLocal();
+}
+
+/// Фото доски в итоге: номер, путь в хранилище, время съёмки, подпись Мари и раздел конспекта.
+class Figure {
+  final int n;
+  final String? key;
+  final int? tSec;
+  final String caption;
+  final String? section;
+  Figure.fromMap(Map<String, dynamic> m)
+      : n = (m['n'] as num?)?.toInt() ?? 0,
+        key = m['key'] as String?,
+        tSec = (m['t_sec'] as num?)?.toInt(),
+        caption = '${m['caption'] ?? ''}',
+        section = m['section'] as String?;
 }

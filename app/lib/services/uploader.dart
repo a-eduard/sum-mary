@@ -144,6 +144,10 @@ class Uploader {
       await raf.close();
     }
     _set(recordingId, const UploadState(1));
+    // Фото доски — до постановки в очередь, чтобы Мари учла их в конспекте.
+    try {
+      await Repo.uploadPhotos(recordingId);
+    } catch (_) {}
     await sb.from('recordings').update({'audio_path': object, 'status': 'queued'}).eq('id', recordingId);
     await prefs.remove(key);
   }

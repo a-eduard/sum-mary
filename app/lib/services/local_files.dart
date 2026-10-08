@@ -29,6 +29,10 @@ extension LocalPhotos on LocalFiles {
   static Future<String> savePhoto(String src) async {
     final dst = p.join((await LocalFiles.dir()).path, 'photo_${DateTime.now().millisecondsSinceEpoch}${p.extension(src).isEmpty ? '.jpg' : p.extension(src)}');
     await File(src).copy(dst);
+    // Камера оставляет копию в кэше — удаляем, чтобы не забивать память телефона.
+    try {
+      await File(src).delete();
+    } catch (_) {}
     return dst;
   }
 }

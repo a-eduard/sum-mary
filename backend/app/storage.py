@@ -6,8 +6,8 @@ from . import config
 H = {"Authorization": f"Bearer {config.SUPABASE_SERVICE_KEY}", "apikey": config.SUPABASE_SERVICE_KEY}
 
 
-def download(path: str, dest: str):
-    url = f"{config.SUPABASE_URL}/storage/v1/object/{config.AUDIO_BUCKET}/{path}"
+def download(path: str, dest: str, bucket: str | None = None):
+    url = f"{config.SUPABASE_URL}/storage/v1/object/{bucket or config.AUDIO_BUCKET}/{path}"
     with requests.get(url, headers=H, stream=True, timeout=600) as r:
         r.raise_for_status()
         with open(dest, "wb") as f:

@@ -19,6 +19,7 @@ DEEPSEEK_MODEL = _env("DEEPSEEK_MODEL", "deepseek-chat")
 YC_FOLDER_ID = _env("YC_FOLDER_ID")
 YC_LLM_API_KEY = _env("YC_LLM_API_KEY")
 YC_LLM_MODEL = _env("YC_LLM_MODEL", "deepseek-v4.1-flash")
+YC_VISION_MODEL = _env("YC_VISION_MODEL", "qwen3.6-35b-a3b")   # фото доски (мультимодальная модель AI Studio)
 
 MODELS_DIR = _env("MODELS_DIR", "/models")
 GIGAAM_MODEL = _env("GIGAAM_MODEL", "v3_e2e_rnnt")
