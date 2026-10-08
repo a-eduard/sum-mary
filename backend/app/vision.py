@@ -24,16 +24,24 @@ PROMPT = ("Это фото доски, слайда или тетради с у�
 def _describe(path: str) -> str:
     with open(path, "rb") as f:
         b64 = base64.b64encode(f.read()).decode()
-    r = requests.post(
-        "https://ai.api.cloud.yandex.net/v1/chat/completions",
-        headers={"Authorization": f"Api-Key {config.YC_LLM_API_KEY}", "OpenAI-Project": config.YC_FOLDER_ID},
-        json={"model": f"gpt://{config.YC_FOLDER_ID}/{config.YC_VISION_MODEL}", "temperature": 0.1, "max_tokens": 4000,
-              "messages": [{"role": "user", "content": [
-                  {"type": "text", "text": PROMPT},
-                  {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}]}]},
-        timeout=180)
-    r.raise_for_status()
-    return clean_latex((r.json()["choices"][0]["message"].get("content") or "").strip())
+
+    def ask(extra: dict, max_tokens: int) -> str:
+        body = {"model": f"gpt://{config.YC_FOLDER_ID}/{config.YC_VISION_MODEL}", "temperature": 0.1,
+                "max_tokens": max_tokens,
+                "messages": [{"role": "user", "content": [
+                    {"type": "text", "text": PROMPT},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}]}], **extra}
+        r = requests.post("https://ai.api.cloud.yandex.net/v1/chat/completions",
+                          headers={"Authorization": f"Api-Key {config.YC_LLM_API_KEY}", "OpenAI-Project": config.YC_FOLDER_ID},
+                          json=body, timeout=180)
+        r.raise_for_status()
+        return (r.json()["choices"][0]["message"].get("content") or "").strip()
+
+    # Без «размышлений»: ~2 с на фото, и модель не тратит весь лимит токенов на рассуждения (тогда ответ пустой).
+    text = ask({"reasoning_effort": "none"}, 2500)
+    if not text:
+        text = ask({}, 8000)
+    return clean_latex(text)
 
 
 _TEX = {r"\lambda": "λ", r"\theta": "θ", r"\alpha": "α", r"\beta": "β", r"\gamma": "γ", r"\delta": "δ", r"\Delta": "Δ",

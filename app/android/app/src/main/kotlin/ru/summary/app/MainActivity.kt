@@ -2,6 +2,7 @@ package ru.summary.app
 
 import android.content.Intent
 import android.os.Build
+import android.os.StatFs
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -19,6 +20,14 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     }
                     "stop" -> { stopService(intent); result.success(null) }
+                    else -> result.notImplemented()
+                }
+            }
+        // Свободное место во внутренней памяти — чтобы запись не оборвалась на середине лекции.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "sammari/storage")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "freeBytes" -> result.success(StatFs(filesDir.absolutePath).availableBytes)
                     else -> result.notImplemented()
                 }
             }

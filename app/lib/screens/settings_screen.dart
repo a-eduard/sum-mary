@@ -5,6 +5,7 @@ import '../config.dart';
 import '../models.dart';
 import '../roles.dart';
 import '../services/billing.dart';
+import '../services/device_storage.dart';
 import '../services/repo.dart';
 import '../theme.dart';
 import 'notifications_screen.dart';
@@ -199,6 +200,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     .then((_) => _reload())),
             _Item(Icons.notifications_none_rounded, 'Уведомления', 'Что присылать и во сколько',
                 () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()))),
+            ValueListenableBuilder<int>(
+              valueListenable: DeviceStorage.keepDays,
+              builder: (_, d, __) => _Item(Icons.sd_storage_outlined, 'Память телефона',
+                  d < 0 ? 'Аудио хранится всегда' : 'Аудио удаляется через $d дн. после обработки',
+                  () => showStorageSheet(context)),
+            ),
             _Item(Icons.spellcheck_rounded, 'Словарь терминов', 'Имена и термины — Мари напишет их правильно',
                 () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VocabularyScreen()))),
             Padding(
@@ -326,4 +333,87 @@ class _Badge extends StatelessWidget {
         decoration: BoxDecoration(color: color.withValues(alpha: .14), borderRadius: BorderRadius.circular(99)),
         child: Text(text, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w700)),
       );
+}
+
+/// «Память телефона»: сколько занимают записи, сколько свободно, как долго хранить аудио.
+Future<void> showStorageSheet(BuildContext context) async {
+  final used = await DeviceStorage.usedBytes();
+  final free = await DeviceStorage.freeBytes();
+  if (!context.mounted) return;
+  await showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    builder: (ctx) {
+      final s = ctx.sm;
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
+          child: ValueListenableBuilder<int>(
+            valueListenable: DeviceStorage.keepDays,
+            builder: (ctx, days, _) => Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Память телефона', style: display(18, color: s.text)),
+              const SizedBox(height: 14),
+              Row(children: [
+                Expanded(child: _Stat('Записи СамМари', DeviceStorage.fmt(used))),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _Stat('Свободно',
+                      free == null ? '—' : '${DeviceStorage.fmt(free)} · ≈${DeviceStorage.hoursLeft(free).floor()} ч записи'),
+                ),
+              ]),
+              const SizedBox(height: 16),
+              Text('Час записи занимает около 15 МБ. Итоги, расшифровки и фото доски хранятся в облаке — '
+                  'с телефона удаляется только аудио, а плеер у старых записей пропадает.',
+                  style: TextStyle(color: s.muted, fontSize: 13, height: 1.4)),
+              const SizedBox(height: 14),
+              Text('Хранить аудио на телефоне', style: TextStyle(color: s.text, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              Wrap(spacing: 8, runSpacing: 8, children: [
+                for (final (d, label) in const [(7, '7 дней'), (30, '30 дней'), (90, '3 месяца'), (-1, 'Всегда')])
+                  ChoiceChip(
+                    label: Text(label),
+                    selected: days == d,
+                    onSelected: (_) => DeviceStorage.setKeepDays(d),
+                  ),
+              ]),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.cleaning_services_outlined),
+                  label: const Text('Удалить аудио обработанных записей'),
+                  onPressed: () async {
+                    final freed = await DeviceStorage.cleanup(await Repo.recordings().first, days: 0);
+                    if (ctx.mounted) {
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context)
+                          .showSnackBar(SnackBar(content: Text('Освобождено ${DeviceStorage.fmt(freed)}')));
+                    }
+                  },
+                ),
+              ),
+            ]),
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class _Stat extends StatelessWidget {
+  final String label, value;
+  const _Stat(this.label, this.value);
+  @override
+  Widget build(BuildContext context) {
+    final s = context.sm;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: s.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: s.border)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: TextStyle(color: s.muted, fontSize: 12)),
+        const SizedBox(height: 4),
+        Text(value, style: TextStyle(color: s.text, fontWeight: FontWeight.w800, fontSize: 15)),
+      ]),
+    );
+  }
 }

@@ -9,6 +9,7 @@ import 'screens/home_screen.dart';
 import 'models.dart';
 import 'screens/login_screen.dart';
 import 'screens/onboarding_screen.dart';
+import 'services/device_storage.dart';
 import 'services/notifications.dart';
 import 'services/repo.dart';
 import 'theme.dart';
@@ -19,6 +20,7 @@ Future<void> main() async {
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   await initializeDateFormatting('ru');
   await ThemeController.load();
+  await DeviceStorage.load();
   await Notifications.init();
   await Supabase.initialize(url: AppConfig.supabaseUrl, anonKey: AppConfig.supabaseAnonKey);
   runApp(const SamMariApp());

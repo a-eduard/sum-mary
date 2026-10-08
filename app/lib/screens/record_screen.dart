@@ -7,6 +7,7 @@ import 'package:record/record.dart';
 
 import '../models.dart';
 import '../modes.dart';
+import '../services/device_storage.dart';
 import '../services/local_files.dart';
 import '../services/recorder.dart';
 import '../services/repo.dart';
@@ -42,7 +43,52 @@ class _RecordScreenState extends State<RecordScreen> {
     _start();
   }
 
+  /// Перед записью: хватит ли памяти. Если мало — предлагаем удалить аудио уже обработанных записей.
+  Future<bool> _checkSpace() async {
+    final free = await DeviceStorage.freeBytes();
+    if (free == null || free > 400 * 1024 * 1024) return true;
+    if (!mounted) return false;
+    final hours = DeviceStorage.hoursLeft(free);
+    final choice = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Мало памяти на телефоне'),
+        content: Text('Свободно ${DeviceStorage.fmt(free)} — это примерно '
+            '${hours < 1 ? '${(hours * 60).round()} мин' : '${hours.toStringAsFixed(1)} ч'} записи.\n\n'
+            'Можно удалить с телефона аудио уже обработанных записей: итоги, расшифровки и фото останутся.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, 'go'), child: const Text('Записывать')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, 'clean'), child: const Text('Освободить место')),
+        ],
+      ),
+    );
+    if (choice == 'clean') {
+      final recs = await Repo.recordings().first;
+      final freed = await DeviceStorage.cleanup(recs, days: 0);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Освобождено ${DeviceStorage.fmt(freed)}')));
+      }
+    }
+    return true;
+  }
+
+  int _tick = 0;
+
+  /// Во время записи: если память почти кончилась — сохраняем то, что есть, а не теряем лекцию.
+  Future<void> _watchSpace() async {
+    if (++_tick % 30 != 0 || _saving) return;
+    final free = await DeviceStorage.freeBytes();
+    if (free != null && free < 40 * 1024 * 1024 && mounted && !_saving) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Память телефона заканчивается — Мари остановила и сохранила запись'), duration: Duration(seconds: 6)));
+      await _stop();
+    }
+  }
+
   Future<void> _start() async {
+    await _checkSpace();
+    if (!mounted) return;
     final ok = await _rec.start();
     if (!ok) {
       if (mounted) {
@@ -58,7 +104,10 @@ class _RecordScreenState extends State<RecordScreen> {
         _levels.removeAt(0);
       });
     });
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) => setState(() {}));
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      setState(() {});
+      _watchSpace();
+    });
     setState(() => _started = true);
   }
 

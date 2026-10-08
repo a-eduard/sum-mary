@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import '../models.dart';
 import '../modes.dart';
 import '../services/calendar.dart';
+import '../services/device_storage.dart';
 import '../services/local_files.dart';
 import '../services/notifications.dart';
 import '../services/repo.dart';
@@ -49,7 +50,13 @@ class _HomeScreenState extends State<HomeScreen> {
     Notifications.askPermission();
     Notifications.openRecording.addListener(_openFromNotification);
     WidgetsBinding.instance.addPostFrameCallback((_) => _openFromNotification());
+    var cleaned = false;
     _recSub = Repo.recordings().listen((list) {
+      // Раз за запуск — удаляем с телефона аудио старых обработанных записей (по настройке «Память телефона»).
+      if (!cleaned) {
+        cleaned = true;
+        DeviceStorage.cleanup(list).catchError((_) => 0);
+      }
       for (final r in list) {
         final prev = _statuses[r.id];
         if (prev != null && prev != 'ready' && r.status == 'ready') _onReady(r);
