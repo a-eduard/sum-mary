@@ -49,6 +49,10 @@ class Api {
   static Future<void> resummarize(String recordingId, String mode) =>
       _post('/resummarize', {'recording_id': recordingId, 'mode': mode});
 
+  /// Сообщение в поддержку: сервер сохраняет его и пересылает владельцу в Telegram.
+  static Future<void> support(String text, {String? appVersion, String? device}) =>
+      _post('/support', {'text': text, 'app_version': appVersion, 'device': device});
+
   static Future<void> confirmPurchase(String purchaseId, String productId, {bool sandbox = false}) =>
       _post('/billing/rustore', {'purchase_id': purchaseId, 'product_id': productId, 'sandbox': sandbox});
 }

@@ -12,6 +12,8 @@ class AppConfig {
   static const proMonthId = 'sammari_pro_month';
   static const proYearId = 'sammari_pro_year';
   static const proHoursLimit = 50;
+  /// Версия для поддержки и профиля (менять вместе с version в pubspec.yaml).
+  static const version = '1.0';
   static const privacyUrl = 'https://sum-mary.ru/privacy';
   static const termsUrl = 'https://sum-mary.ru/terms';
 }

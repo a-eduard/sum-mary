@@ -3,154 +3,437 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>СамМари — ИИ-ассистент для записи встреч, звонков и лекций</title>
-<meta name="description" content="Мари записывает встречи, звонки, лекции и уроки, делает расшифровку с разделением по спикерам, краткое резюме и список задач. Хорошо понимает русский язык. Данные хранятся в России.">
-<meta property="og:title" content="СамМари — Мари запишет и выделит главное">
-<meta property="og:description" content="Расшифровка встреч и звонков, резюме и задачи за пару минут.">
+<title>СамМари — Мари запишет урок, встречу или звонок и выделит главное</title>
+<meta name="description" content="Мари записывает уроки, лекции, встречи и звонки, расшифровывает речь по спикерам и делает итог: главное, задачи, даты, тест для повторения и PDF-конспект. Хорошо понимает русский. Данные хранятся в России.">
+<meta name="theme-color" content="#0F1015">
+<meta property="og:title" content="СамМари — Мари слушает, вы ничего не упускаете">
+<meta property="og:description" content="Расшифровка уроков, лекций, встреч и звонков. Главное, задачи и даты — за пару минут.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://sum-mary.ru/">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='16' fill='%237C6CF2'/><path d='M14 32h4M22 24v16M30 16v32M38 22v20M46 28v8M50 32h0' stroke='white' stroke-width='5' stroke-linecap='round'/></svg>">
+<meta property="og:locale" content="ru_RU">
+<link rel="canonical" href="https://sum-mary.ru/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3CradialGradient id='g' cx='.35' cy='.32' r='.85'%3E%3Cstop offset='0' stop-color='%23E6FFFA'/%3E%3Cstop offset='.25' stop-color='%2346D6C4'/%3E%3Cstop offset='.65' stop-color='%236E96F0'/%3E%3Cstop offset='1' stop-color='%238B6EFF'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='%230F1015'/%3E%3Ccircle cx='32' cy='32' r='20' fill='url(%23g)'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"СамМари","operatingSystem":"Android","applicationCategory":"ProductivityApplication","inLanguage":"ru",
+ "offers":[{"@type":"Offer","price":"0","priceCurrency":"RUB","name":"Бесплатно"},{"@type":"Offer","price":"490","priceCurrency":"RUB","name":"Pro, месяц"}],
+ "url":"https://sum-mary.ru/","downloadUrl":"https://www.rustore.ru/catalog/app/ru.summary.app"}
+</script>
 <style>
-:root{--bg:#0f1015;--card:#1a1c24;--line:#2a2d38;--text:#eef0f6;--muted:#9aa0b4;--accent:#7c6cf2;--accent2:#ff4d6d;--radius:20px}
-*{box-sizing:border-box;margin:0}
-body{background:var(--bg);color:var(--text);font:17px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+:root{
+  --bg:#0F1015;--bg2:#13141B;--card:#1A1C24;--card2:#20232D;--line:#2A2D3A;--line2:#3A3478;
+  --text:#F2F1EE;--muted:#9A9DAB;--soft:#C9C6E8;
+  --accent:#8B7CFF;--accentText:#B3A9FF;--cyan:#46D6C4;--blue:#6EA8FF;--red:#FF7A90;--green:#6FE0B0;--yellow:#F5C451;
+  --r:22px;--display:'Unbounded',system-ui,sans-serif;--sans:'Manrope',system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--text);font:17px/1.6 var(--sans);-webkit-font-smoothing:antialiased;overflow-x:hidden}
 a{color:inherit}
-.wrap{max-width:1120px;margin:0 auto;padding:0 20px}
-header{position:sticky;top:0;z-index:10;background:rgba(15,16,21,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
-.nav{display:flex;align-items:center;gap:24px;height:64px}
-.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:20px;text-decoration:none}
-.logo i{width:32px;height:32px;border-radius:10px;background:var(--accent);display:grid;place-items:center;font-style:normal}
-.nav nav{margin-left:auto;display:flex;gap:24px;font-size:15px;color:var(--muted)}
-.nav nav a{text-decoration:none}.nav nav a:hover{color:var(--text)}
-.btn{display:inline-flex;align-items:center;gap:10px;padding:14px 24px;border-radius:14px;background:var(--accent);color:#fff;font-weight:600;text-decoration:none;border:0;cursor:pointer;font-size:16px}
-.btn.ghost{background:transparent;border:1px solid var(--line)}
-.btn:hover{filter:brightness(1.08)}
-.hero{padding:88px 0 64px;display:grid;grid-template-columns:1.1fr .9fr;gap:48px;align-items:center}
-.pill{display:inline-block;padding:6px 14px;border-radius:999px;background:rgba(124,108,242,.15);color:#b9b0ff;font-size:14px;margin-bottom:20px}
-h1{font-size:clamp(36px,5.2vw,60px);line-height:1.08;letter-spacing:-.02em}
-h1 span{color:var(--accent)}
-.lead{color:var(--muted);font-size:20px;margin:20px 0 32px;max-width:560px}
+img,svg{display:block}
+.wrap{max-width:1160px;margin:0 auto;padding:0 20px}
+.display{font-family:var(--display);letter-spacing:-.01em}
+:focus-visible{outline:2px solid var(--accentText);outline-offset:3px;border-radius:8px}
+
+/* ---------- шар Мари ---------- */
+.orb{position:relative;border-radius:50%;flex:none;
+  background:radial-gradient(circle at 34% 30%,#E6FFFA 0,#7EE8DA 9%,#46D6C4 24%,#6E96F0 58%,#8B6EFF 100%);
+  box-shadow:0 0 0 1px rgba(255,255,255,.06) inset,0 18px 60px -10px rgba(139,124,255,.55);animation:breathe 4s ease-in-out infinite}
+.orb::after{content:"";position:absolute;inset:-35%;border-radius:50%;z-index:-1;
+  background:radial-gradient(circle,rgba(139,124,255,.38),rgba(70,214,196,.10) 45%,transparent 70%);filter:blur(6px)}
+.orb.flat{animation:none;box-shadow:none}.orb.flat::after{display:none}
+@keyframes breathe{0%,100%{transform:scale(.97)}50%{transform:scale(1.03)}}
+
+/* ---------- шапка ---------- */
+header{position:sticky;top:0;z-index:20;background:rgba(15,16,21,.78);backdrop-filter:saturate(1.4) blur(14px);-webkit-backdrop-filter:saturate(1.4) blur(14px);border-bottom:1px solid transparent;transition:border-color .3s}
+header.scrolled{border-bottom-color:var(--line)}
+.nav{display:flex;align-items:center;gap:28px;height:68px}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;font-family:var(--display);font-weight:700;font-size:19px}
+.logo .orb{width:28px;height:28px}
+.nav nav{margin-left:auto;display:flex;gap:26px;font-size:15px;font-weight:600;color:var(--muted)}
+.nav nav a{text-decoration:none;transition:color .2s}.nav nav a:hover{color:var(--text)}
+
+/* ---------- кнопки ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:52px;padding:0 24px;border-radius:16px;font:700 16px var(--sans);text-decoration:none;cursor:pointer;border:0;transition:transform .15s,filter .2s,background .2s}
+.btn:active{transform:scale(.98)}
+.btn.primary{background:var(--text);color:var(--bg)}.btn.primary:hover{filter:brightness(.92)}
+.btn.violet{background:var(--accent);color:var(--bg)}.btn.violet:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}.btn.ghost:hover{background:var(--card)}
+.btn.sm{min-height:42px;padding:0 18px;font-size:15px;border-radius:13px}
+.rs{width:22px;height:22px;flex:none}
+
+/* ---------- hero ---------- */
+.hero{position:relative;padding:72px 0 40px;overflow-x:clip}
+.hero::before{content:"";position:absolute;top:-120px;right:-160px;width:720px;height:720px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,rgba(139,124,255,.22),rgba(70,214,196,.06) 45%,transparent 70%)}
+.hero .wrap{display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center;position:relative}
+.pill{display:inline-flex;align-items:center;gap:10px;padding:7px 14px 7px 8px;border-radius:999px;background:var(--card);border:1px solid var(--line);color:var(--soft);font-size:14px;font-weight:600}
+.pill .orb{width:20px;height:20px;animation:none}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(34px,5vw,58px);line-height:1.08;letter-spacing:-.02em;margin:22px 0 0}
+h1 em{font-style:normal;background:linear-gradient(90deg,var(--cyan),var(--accent));-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{color:var(--muted);font-size:19px;margin:22px 0 32px;max-width:540px}
 .cta{display:flex;gap:12px;flex-wrap:wrap}
-.note{color:var(--muted);font-size:14px;margin-top:14px}
-.phone{background:var(--card);border:1px solid var(--line);border-radius:32px;padding:22px;box-shadow:0 30px 80px rgba(124,108,242,.15)}
-.phone h4{font-size:18px;margin-bottom:4px}.phone small{color:var(--muted)}
-.tabs{display:flex;gap:6px;margin:16px 0;background:#12141b;padding:4px;border-radius:12px;font-size:14px}
-.tabs b{flex:1;text-align:center;padding:8px;border-radius:9px;font-weight:500;color:var(--muted)}.tabs b:first-child{background:var(--card);color:var(--text)}
-.phone p{font-size:15px;color:#d6d9e4}
-.task{display:flex;gap:10px;align-items:flex-start;margin-top:12px;font-size:14px}
-.task:before{content:"";flex:none;width:18px;height:18px;margin-top:2px;border-radius:6px;border:2px solid var(--accent)}
-.task em{color:var(--muted);font-style:normal}
-section{padding:72px 0}
-h2{font-size:clamp(28px,3.6vw,40px);letter-spacing:-.01em;margin-bottom:12px}
-.sub{color:var(--muted);font-size:18px;max-width:640px;margin-bottom:40px}
+.note{color:var(--muted);font-size:14px;margin-top:16px;display:flex;gap:18px;flex-wrap:wrap}
+.note span::before{content:"✓ ";color:var(--green)}
+
+/* ---------- телефон со сценой ---------- */
+.stage{display:flex;flex-direction:column;align-items:center;gap:18px}
+.switch{display:inline-flex;padding:4px;border-radius:14px;background:var(--card);border:1px solid var(--line)}
+.switch button{font:700 14px var(--sans);color:var(--muted);background:transparent;border:0;border-radius:10px;padding:9px 18px;cursor:pointer;min-height:40px;transition:background .25s,color .25s}
+.switch button[aria-selected="true"]{background:var(--text);color:var(--bg)}
+.phone{position:relative;width:min(330px,100%,calc((100vh - 190px) * 9 / 18.5));min-width:250px;aspect-ratio:9/18.5;border-radius:44px;padding:10px;
+  background:linear-gradient(160deg,#2A2D3A,#15161C);box-shadow:0 40px 120px -30px rgba(139,124,255,.45),0 0 0 1px rgba(255,255,255,.05) inset}
+.screen{position:relative;height:100%;border-radius:36px;background:var(--bg);overflow:hidden}
+.scene{position:absolute;inset:0;padding:44px 18px 18px;display:flex;flex-direction:column;opacity:0;transform:translateY(12px);transition:opacity .6s,transform .6s;pointer-events:none}
+.scene.on{opacity:1;transform:none}
+.status{position:absolute;top:14px;left:24px;right:24px;display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:var(--muted);z-index:2}
+/* сцена 1: запись */
+.rec{align-items:center;justify-content:center;text-align:center;gap:18px}
+.rec .chip{font-size:12px;font-weight:700;padding:6px 12px;border-radius:999px;background:var(--card);border:1px solid var(--line);color:var(--soft)}
+.rec .orb{width:132px;height:132px}
+.rec .time{font-family:var(--display);font-size:34px;font-weight:600;font-variant-numeric:tabular-nums}
+.rec .hint{font-size:13px;color:var(--muted)}
+.wave{display:flex;align-items:center;gap:4px;height:36px}
+.wave i{width:4px;border-radius:4px;background:linear-gradient(var(--cyan),var(--accent));height:20%;animation:wv 1.1s ease-in-out infinite}
+@keyframes wv{0%,100%{height:18%}50%{height:100%}}
+.marks{display:flex;gap:8px}
+.marks span{font-size:11px;font-weight:700;padding:7px 10px;border-radius:12px;background:var(--card);border:1px solid var(--line)}
+.marks span.hot{border-color:rgba(255,122,144,.5);color:var(--red)}
+/* сцена 2: обработка */
+.proc{justify-content:center;gap:16px;padding-left:26px;padding-right:26px}
+.proc .orb{width:72px;height:72px;margin:0 auto 6px}
+.proc h4{font-family:var(--display);font-size:16px;text-align:center;margin-bottom:6px}
+.step{display:flex;align-items:center;gap:12px;font-size:14px;color:var(--muted);transition:color .4s}
+.step b{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);flex:none;display:grid;place-items:center;font-size:12px;transition:all .4s}
+.step.done{color:var(--text)}.step.done b{background:var(--green);border-color:var(--green);color:var(--bg)}
+.step.done b::after{content:"✓";font-weight:800}
+.step.now{color:var(--text)}.step.now b{border-color:var(--accent);border-top-color:transparent;animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* сцена 3: итог */
+.res{gap:10px;padding-top:40px}
+.res .head{display:flex;align-items:center;gap:8px}
+.tag{font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px;color:var(--bg)}
+.res .meta{font-size:11px;color:var(--muted)}
+.res h5{font-family:var(--display);font-size:15px;line-height:1.3}
+.tabs{display:flex;gap:16px;border-bottom:1px solid var(--line);font-size:12px;font-weight:700;color:var(--muted)}
+.tabs span{padding:6px 0}.tabs span:first-child{color:var(--text);border-bottom:2px solid var(--accent)}
+.pt{font-size:12.5px;line-height:1.45;opacity:0;transform:translateY(6px);transition:opacity .45s,transform .45s}
+.scene.on .pt{opacity:1;transform:none}
+.pt.def b{color:var(--blue)}
+.pt.box{border:1px solid #4A4E62;background:var(--card);border-radius:10px;padding:6px 10px;font-weight:700;align-self:flex-start}
+.pt.imp{border-radius:12px;background:rgba(255,122,144,.12);border:1px solid rgba(255,122,144,.35);padding:7px 10px;color:#FF9AAB;font-weight:600}
+.pt.err{color:var(--green);font-weight:600}
+.pt.task{display:flex;gap:8px;align-items:flex-start}
+.pt.task::before{content:"";width:14px;height:14px;margin-top:2px;border-radius:50%;border:2px solid var(--cyan);flex:none}
+.pt.task small{display:block;color:var(--muted);font-size:11px}
+.pt.ev{display:flex;align-items:center;gap:10px;border-radius:14px;background:linear-gradient(135deg,#2B2560,var(--card) 75%);border:1px solid var(--line2);padding:9px 10px}
+.pt.ev div{flex:1}.pt.ev small{display:block;color:var(--soft);font-size:11px}
+.pt.ev em{font-style:normal;font-size:11px;font-weight:800;background:var(--accent);color:var(--bg);padding:6px 9px;border-radius:9px}
+.res .actions{margin-top:auto;display:flex;gap:8px}
+.res .actions span{flex:1;text-align:center;font-size:12px;font-weight:800;padding:10px 6px;border-radius:14px;background:var(--card);border:1px solid var(--line)}
+.res .actions span:last-child{background:var(--text);color:var(--bg);border-color:var(--text)}
+.dots{display:flex;gap:6px;justify-content:center}
+.dots i{width:6px;height:6px;border-radius:50%;background:var(--line);transition:all .3s}.dots i.on{width:18px;border-radius:3px;background:var(--accent)}
+
+/* ---------- секции ---------- */
+section{padding:88px 0;position:relative}
+.eyebrow{font-size:13px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--accentText);margin-bottom:12px}
+h2{font-family:var(--display);font-weight:700;font-size:clamp(26px,3.4vw,40px);line-height:1.15;letter-spacing:-.015em;max-width:760px}
+.sub{color:var(--muted);font-size:18px;max-width:640px;margin:14px 0 44px}
+.reveal{opacity:0;transform:translateY(22px);transition:opacity .7s ease,transform .7s ease}
+.reveal.in{opacity:1;transform:none}
+
+/* лента «звук → конспект» */
+.flow{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;counter-reset:f}
+.fcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:26px;position:relative;overflow:hidden}
+.fcard .n{font-family:var(--display);font-size:13px;color:var(--accentText);margin-bottom:16px}
+.fcard h3{font-size:20px;margin-bottom:8px}
+.fcard p{color:var(--muted);font-size:15px}
+.fcard .viz{height:64px;margin-bottom:18px;display:flex;align-items:center;gap:6px}
+.viz.w i{width:5px;border-radius:5px;background:linear-gradient(var(--cyan),var(--accent));animation:wv 1.3s ease-in-out infinite}
+.viz.t{flex-direction:column;align-items:stretch;justify-content:center;gap:7px}
+.viz.t i{height:7px;border-radius:4px;background:var(--line)}.viz.t i:nth-child(1){width:90%}.viz.t i:nth-child(2){width:70%;background:#4A4E62}.viz.t i:nth-child(3){width:82%}
+.viz.s{gap:8px}.viz.s span{font-size:12px;font-weight:800;padding:6px 10px;border-radius:10px}
+
+/* сплит: учёба / работа */
+.split{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
+.split.rev .media{order:2}
+.list{display:grid;gap:14px;margin-top:8px}
+.li{display:flex;gap:14px;align-items:flex-start}
+.li .ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;flex:none;background:var(--card);border:1px solid var(--line)}
+.li .ic svg{width:20px;height:20px}
+.li h4{font-size:17px;margin-bottom:2px}.li p{color:var(--muted);font-size:15px}
+.media{background:var(--bg2);border:1px solid var(--line);border-radius:28px;padding:22px;display:grid;gap:12px}
+.mc{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px}
+.mc .k{font-size:12px;font-weight:800;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px}
+.legend{display:flex;flex-wrap:wrap;gap:8px}
+.legend span{font-size:13px;font-weight:700;padding:6px 11px;border-radius:10px;background:var(--card2)}
+.quiz{display:grid;gap:8px}
+.quiz div{font-size:14px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--card2)}
+.quiz div.ok{border-color:var(--green);background:rgba(111,224,176,.08)}
+.quiz div.bad{border-color:var(--red);background:rgba(255,122,144,.08)}
+.chat{display:grid;gap:8px}
+.bub{max-width:86%;font-size:14px;padding:10px 13px;border-radius:16px;line-height:1.45}
+.bub.me{justify-self:end;background:var(--accent);color:var(--bg);border-bottom-right-radius:5px;font-weight:600}
+.bub.mari{background:var(--card2);border:1px solid var(--line);border-bottom-left-radius:5px}
+
+/* сетка возможностей */
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:26px}
-.card .ic{font-size:28px;margin-bottom:12px}
-.card h3{font-size:19px;margin-bottom:6px}.card p{color:var(--muted);font-size:15px}
-.steps{counter-reset:s}.steps .card h3:before{counter-increment:s;content:counter(s);display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--accent);margin-right:10px;font-size:15px}
-.uses{display:flex;flex-wrap:wrap;gap:10px}
-.uses span{padding:10px 18px;border-radius:999px;background:var(--card);border:1px solid var(--line)}
-.price{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:820px}
-.price .card.pro{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
-.price .big{font-size:34px;font-weight:700;margin:8px 0 14px}
-.price ul{padding-left:20px;color:#d6d9e4;font-size:15px}.price li{margin:6px 0}
-details{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 22px;margin-bottom:10px}
-summary{cursor:pointer;font-weight:600;list-style:none}summary::-webkit-details-marker{display:none}
-summary:after{content:"+";float:right;color:var(--accent);font-size:22px;line-height:1}
-details[open] summary:after{content:"−"}
-details p{color:var(--muted);margin-top:10px;font-size:15px}
-.band{background:linear-gradient(135deg,#2a2160,#1a1c24);border:1px solid var(--line);border-radius:28px;padding:48px;text-align:center}
-footer{border-top:1px solid var(--line);padding:32px 0;color:var(--muted);font-size:14px}
-footer .wrap{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:center}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:24px;transition:border-color .25s,transform .25s}
+.card:hover{border-color:#3A3E52;transform:translateY(-2px)}
+.card .ic{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:var(--card2);margin-bottom:16px}
+.card .ic svg{width:22px;height:22px}
+.card h3{font-size:18px;margin-bottom:6px}.card p{color:var(--muted);font-size:15px}
+
+/* приватность */
+.trust{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.trust .card{background:transparent}
+
+/* тарифы */
+.price{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:880px}
+.plan{background:var(--card);border:1px solid var(--line);border-radius:26px;padding:30px;display:flex;flex-direction:column}
+.plan.pro{background:linear-gradient(160deg,#2B2560,var(--card) 60%);border-color:var(--line2)}
+.plan h3{font-family:var(--display);font-size:20px}
+.plan .big{font-family:var(--display);font-size:40px;font-weight:700;margin:12px 0 4px}
+.plan .big small{font-family:var(--sans);font-size:16px;color:var(--muted);font-weight:600}
+.plan .alt{color:var(--soft);font-size:14px;margin-bottom:18px}
+.plan ul{list-style:none;display:grid;gap:10px;margin-bottom:26px}
+.plan li{display:flex;gap:10px;font-size:15px;color:#DADCE6}
+.plan li::before{content:"";width:18px;height:18px;margin-top:3px;flex:none;border-radius:50%;background:rgba(111,224,176,.15) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236FE0B0' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12.5l4 4 8-9'/%3E%3C/svg%3E") center/12px no-repeat}
+.plan .btn{margin-top:auto}
+
+/* вопросы */
+.faq{max-width:820px}
+details{border-bottom:1px solid var(--line)}
+summary{cursor:pointer;list-style:none;padding:22px 40px 22px 0;font-weight:700;font-size:18px;position:relative}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"";position:absolute;right:6px;top:50%;width:12px;height:12px;margin-top:-9px;border-right:2px solid var(--accentText);border-bottom:2px solid var(--accentText);transform:rotate(45deg);transition:transform .25s}
+details[open] summary::after{transform:rotate(-135deg);margin-top:-3px}
+details p{color:var(--muted);padding:0 0 22px;font-size:16px;max-width:700px}
+
+/* финальный призыв */
+.band{position:relative;overflow:hidden;border-radius:32px;padding:64px 32px;text-align:center;background:linear-gradient(160deg,#211D4A,#15161C 70%);border:1px solid var(--line2)}
+.band .orb{width:96px;height:96px;margin:0 auto 26px}
+.band h2{margin:0 auto}
+.band .sub{margin:14px auto 30px}
+.band .cta{justify-content:center}
+.soon{display:inline-flex;align-items:center;gap:10px;margin-top:22px;color:var(--muted);font-size:14px}
+.soon b{color:var(--text)}
+
+footer{border-top:1px solid var(--line);padding:36px 0 44px;color:var(--muted);font-size:14px}
+footer .wrap{display:flex;flex-wrap:wrap;gap:14px 28px;align-items:center}
+footer a{text-decoration:none}footer a:hover{color:var(--text)}
 footer .sp{margin-left:auto}
-@media (max-width:860px){.hero{grid-template-columns:1fr;padding-top:48px}.grid{grid-template-columns:1fr}.price{grid-template-columns:1fr}.nav nav{display:none}.band{padding:32px 20px}}
+footer .legal{flex-basis:100%;font-size:13px;opacity:.8}
+
+@media (max-width:960px){
+  .hero .wrap,.split{grid-template-columns:1fr;gap:40px}
+  .split.rev .media{order:0}
+  .flow,.grid,.trust{grid-template-columns:1fr 1fr}
+  .nav nav{display:none}
+}
+@media (max-width:640px){
+  .hero{padding-top:40px}
+  .flow,.grid,.trust,.price{grid-template-columns:1fr}
+  section{padding:64px 0}
+  .band{padding:44px 20px}
+  .nav{gap:12px}.nav .btn{padding:0 14px}
+  footer .sp{margin-left:0}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .reveal{opacity:1;transform:none}
+}
 </style>
 </head>
 <body>
-<header><div class="wrap nav">
-  <a class="logo" href="/"><i>〰</i>СамМари</a>
-  <nav><a href="#features">Возможности</a><a href="#how">Как работает</a><a href="#price">Тарифы</a><a href="#faq">Вопросы</a></nav>
-  <a class="btn" href="#download">Скачать</a>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-dl" viewBox="0 0 24 24"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 19.5h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 015.5 4H11v15H5.5A1.5 1.5 0 014 17.5zM20 5.5A1.5 1.5 0 0018.5 4H13v15h5.5a1.5 1.5 0 001.5-1.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  <symbol id="i-quiz" viewBox="0 0 24 24"><rect x="4" y="3.5" width="16" height="17" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.5 9.5a2.5 2.5 0 114 2c-.8.5-1.5 1-1.5 2M12 17h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-pdf" viewBox="0 0 24 24"><path d="M14 3.5H7A2.5 2.5 0 004.5 6v12A2.5 2.5 0 007 20.5h10a2.5 2.5 0 002.5-2.5V9zM14 3.5V9h5.5M8.5 13h7M8.5 16.5h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-q" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.6 9.6a2.4 2.4 0 113.4 2.2c-.6.3-1 .9-1 1.6V14M12 17.2h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3.5 10h17M8 3v4M16 3v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 12.3l2.7 2.7L16 9.6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><path d="M6.5 3.5h3l1.5 4.5-2 1.5a11 11 0 005.5 5.5l1.5-2 4.5 1.5v3a2 2 0 01-2 2A16 16 0 014.5 5.5a2 2 0 012-2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  <symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="6" width="12.5" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15.5 10.5L21 7.5v9l-5.5-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4.5 6.5a3 3 0 013-3h9a3 3 0 013 3v7a3 3 0 01-3 3H10l-4.5 4v-4h0a1 1 0 01-1-1z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16.5V11a6 6 0 1112 0v5.5l1.5 2h-15zM10 20.5h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-shelf" viewBox="0 0 24 24"><path d="M3.5 7.5a2 2 0 012-2h4l2 2h7a2 2 0 012 2v8a2 2 0 01-2 2h-13a2 2 0 01-2-2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  <symbol id="i-abc" viewBox="0 0 24 24"><path d="M4 17l4-11 4 11M5.5 13h5M14 15.5l2.5 2.5L21 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8.5" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M2.5 19.5c0-3.3 2.9-5.5 6.5-5.5s6.5 2.2 6.5 5.5M16 5.2a3.5 3.5 0 010 6.6M18 14.3c2 .6 3.5 2.4 3.5 5.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4.5" y="10.5" width="15" height="10" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 10.5V8a4 4 0 018 0v2.5" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-ru" viewBox="0 0 24 24"><path d="M12 3.5l7.5 3v5.2c0 4.5-3.2 7.9-7.5 9.3-4.3-1.4-7.5-4.8-7.5-9.3V6.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8.8 12.2l2.2 2.2 4.2-4.4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13M10 11v5M14 11v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+
+<header id="top"><div class="wrap nav">
+  <a class="logo" href="#top" aria-label="СамМари — наверх"><span class="orb flat"></span>СамМари</a>
+  <nav aria-label="Разделы"><a href="#how">Как работает</a><a href="#study">Учёба</a><a href="#work">Работа</a><a href="#price">Тарифы</a><a href="#faq">Вопросы</a></nav>
+  <a class="btn primary sm" href="https://www.rustore.ru/catalog/app/ru.summary.app" rel="noopener">Скачать</a>
 </div></header>
 
 <main>
-<div class="wrap hero">
+<section class="hero" aria-labelledby="h1"><div class="wrap">
   <div>
-    <div class="pill">ИИ-ассистент Мари · понимает русский</div>
-    <h1>Мари запишет встречу и&nbsp;выделит <span>главное</span></h1>
-    <p class="lead">Записывайте встречи, звонки, лекции и уроки прямо с телефона. Мари сделает расшифровку по спикерам, краткое резюме и список задач — за пару минут.</p>
-    <div class="cta" id="download">
-      <a class="btn" href="https://www.rustore.ru/" rel="nofollow">Скачать в RuStore</a>
-      <a class="btn ghost" href="#windows">Программа для Windows</a>
+    <span class="pill"><span class="orb flat"></span>Мари — ИИ-ассистент, который хорошо понимает русский</span>
+    <h1 id="h1">Мари слушает — вы <em>ничего не упускаете</em></h1>
+    <p class="lead">Запишите урок, лекцию, встречу или звонок. Мари расшифрует речь по спикерам, выделит главное, задачи и даты — и напомнит о них вовремя.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://www.rustore.ru/catalog/app/ru.summary.app" rel="noopener"><svg class="rs"><use href="#i-dl"/></svg>Скачать в RuStore</a>
+      <a class="btn ghost" href="#how">Как это работает</a>
     </div>
-    <p class="note">30 минут в месяц бесплатно. Без привязки карты.</p>
+    <p class="note"><span>30 минут в месяц бесплатно</span><span>Без привязки карты</span><span>Данные в России</span></p>
   </div>
-  <div class="phone" aria-label="Пример результата">
-    <h4>Планёрка по запуску приложения</h4>
-    <small>5 октября · 42 мин · 4 участника</small>
-    <div class="tabs"><b>Резюме</b><b>Транскрипт</b><b>Задачи</b></div>
-    <p>Команда согласовала запуск бета-версии в RuStore. Решили объединить два сервиса регистрации, чтобы упростить откат данных. Оплату вынесут в отдельный модуль.</p>
-    <div class="task"><span>Подготовить сборку для RuStore <em>· Эдуард · до пятницы</em></span></div>
-    <div class="task"><span>Отправить схему архитектуры в чат <em>· Сергей</em></span></div>
-    <div class="task"><span>Согласовать тексты лендинга <em>· Олег</em></span></div>
-  </div>
-</div>
 
-<section id="features"><div class="wrap">
-  <h2>Всё, что нужно после разговора</h2>
-  <p class="sub">Больше не нужно конспектировать и вспоминать, кто что обещал.</p>
-  <div class="grid">
-    <div class="card"><div class="ic">🎙️</div><h3>Запись в один тап</h3><p>Встречи, лекции, уроки — даже при выключенном экране. Импорт записей телефонных звонков и аудиофайлов.</p></div>
-    <div class="card"><div class="ic">🗣️</div><h3>Расшифровка по спикерам</h3><p>Точное распознавание русской речи с пунктуацией. Назовите участников — имена появятся в тексте.</p></div>
-    <div class="card"><div class="ic">✨</div><h3>Резюме и решения</h3><p>Короткая выжимка, принятые решения, открытые вопросы и кто за что отвечает.</p></div>
-    <div class="card"><div class="ic">✅</div><h3>Задачи со сроками</h3><p>Мари сама находит договорённости: что сделать, кто отвечает и к какому сроку.</p></div>
-    <div class="card"><div class="ic">💬</div><h3>Спросите Мари</h3><p>«Какие задачи на мне?», «Что решили по бюджету?» — ответ со ссылкой на момент записи.</p></div>
-    <div class="card"><div class="ic">📚</div><h3>Словарь терминов</h3><p>Добавьте названия продуктов, имена и термины — Мари будет писать их правильно.</p></div>
+  <div class="stage">
+    <div class="switch" role="tablist" aria-label="Пример">
+      <button role="tab" aria-selected="true" data-kind="study">Учёба</button>
+      <button role="tab" aria-selected="false" data-kind="work">Работа</button>
+    </div>
+    <div class="phone" aria-label="Пример: Мари записывает и делает итог">
+      <div class="screen">
+        <div class="status"><span>9:41</span><span>●●● 5G</span></div>
+        <div class="scene rec on" data-s="0">
+          <span class="chip" id="recChip">Алгебра · урок</span>
+          <span class="orb"></span>
+          <div class="wave" aria-hidden="true"></div>
+          <div class="time" id="recTime">00:00</div>
+          <div class="hint">Я всё записываю. Можно убрать телефон.</div>
+          <div class="marks" id="recMarks"></div>
+        </div>
+        <div class="scene proc" data-s="1">
+          <span class="orb"></span>
+          <h4>Мари разбирает запись</h4>
+          <div class="step" data-k="0"><b></b>Загрузка</div>
+          <div class="step" data-k="1"><b></b>Расшифровка по спикерам</div>
+          <div class="step" data-k="2"><b></b>Главное, задачи и даты</div>
+        </div>
+        <div class="scene res" data-s="2" id="resScene"></div>
+      </div>
+    </div>
+    <div class="dots" aria-hidden="true"><i class="on"></i><i></i><i></i></div>
   </div>
 </div></section>
 
 <section id="how"><div class="wrap">
-  <h2>Как это работает</h2>
-  <p class="sub">Три шага — и у вас готовый конспект.</p>
-  <div class="grid steps">
-    <div class="card"><h3>Запишите</h3><p>Нажмите на микрофон в начале встречи или загрузите запись звонка.</p></div>
-    <div class="card"><h3>Подождите пару минут</h3><p>Мари расшифрует речь, разделит спикеров и подготовит резюме. Можно закрыть приложение.</p></div>
-    <div class="card"><h3>Действуйте</h3><p>Отметьте задачи, поделитесь резюме с коллегами или задайте Мари вопрос.</p></div>
+  <p class="eyebrow reveal">Как работает</p>
+  <h2 class="reveal">От звука до конспекта — пара минут</h2>
+  <p class="sub reveal">Не нужно ничего настраивать. Нажмите на шар — и занимайтесь своими делами.</p>
+  <div class="flow">
+    <div class="fcard reveal"><div class="viz w" aria-hidden="true" id="vizW"></div><div class="n">01</div><h3>Запишите</h3><p>Урок, лекцию, встречу — даже с выключенным экраном. Или загрузите запись звонка, голосовое или видео из Zoom и Телемоста.</p></div>
+    <div class="fcard reveal"><div class="viz t" aria-hidden="true"><i></i><i></i><i></i></div><div class="n">02</div><h3>Мари расшифрует</h3><p>Точный текст с пунктуацией и разделением по спикерам. Термины из вашего словаря пишутся правильно.</p></div>
+    <div class="fcard reveal"><div class="viz s" aria-hidden="true"><span style="background:rgba(110,168,255,.15);color:var(--blue)">Главное</span><span style="background:rgba(70,214,196,.15);color:var(--cyan)">Задачи</span><span style="background:rgba(139,124,255,.18);color:var(--accentText)">Даты</span></div><div class="n">03</div><h3>И выделит главное</h3><p>Короткий итог, задачи со сроками, события в календарь. Тип записи Мари определит сама.</p></div>
+  </div>
+</div></section>
+
+<section id="study"><div class="wrap split">
+  <div>
+    <p class="eyebrow reveal">Для учёбы</p>
+    <h2 class="reveal">Конспект урока, который хочется перечитать</h2>
+    <p class="sub reveal">Мари знает, что важно на уроке и лекции: определения, формулы, примеры и то, что «будет на контрольной».</p>
+    <div class="list">
+      <div class="li reveal"><span class="ic" style="color:var(--blue)"><svg><use href="#i-book"/></svg></span><div><h4>Цветной конспект</h4><p>Определения, формулы в рамке, примеры, частые ошибки и «важно» — каждый со ссылкой на момент записи.</p></div></div>
+      <div class="li reveal"><span class="ic" style="color:var(--accentText)"><svg><use href="#i-quiz"/></svg></span><div><h4>Тест, карточки и билеты</h4><p>10 вопросов с объяснениями, карточки с терминами, ответы на билеты словами преподавателя.</p></div></div>
+      <div class="li reveal"><span class="ic" style="color:var(--yellow)"><svg><use href="#i-q"/></svg></span><div><h4>Кнопка «Не понял»</h4><p>Отметьте непонятное место во время урока — в итоге Мари объяснит его простыми словами.</p></div></div>
+      <div class="li reveal"><span class="ic" style="color:var(--cyan)"><svg><use href="#i-pdf"/></svg></span><div><h4>PDF-конспект и шпаргалка</h4><p>Распечатайте весь урок или только формулы и определения на одной странице.</p></div></div>
+      <div class="li reveal"><span class="ic" style="color:var(--red)"><svg><use href="#i-cal"/></svg></span><div><h4>Напомнит о контрольной</h4><p>Учитель назвал дату — Мари добавит её в календарь и накануне предложит повторить.</p></div></div>
+    </div>
+  </div>
+  <div class="media reveal" aria-label="Пример конспекта и теста">
+    <div class="mc"><div class="k">Конспект · Алгебра</div>
+      <div class="legend"><span style="color:var(--blue)">Определение</span><span style="border:1px solid #4A4E62">Формула</span><span style="color:var(--muted);font-style:italic">Пример</span><span style="color:var(--red)">Важно</span><span style="color:var(--green)">Частая ошибка</span></div>
+    </div>
+    <div class="mc"><div class="k">Тест · вопрос 3 из 10</div>
+      <p style="font-weight:700;margin-bottom:10px">Что такое делитель числа?</p>
+      <div class="quiz"><div class="ok">Число, на которое данное делится нацело ✓</div><div class="bad">Число, которое делится на данное</div><div>Число, всегда большее данного</div></div>
+      <p style="color:var(--muted);font-size:13px;margin-top:10px">Учитель объяснял это на 02:20 — можно переслушать.</p>
+    </div>
+  </div>
+</div></section>
+
+<section id="work"><div class="wrap split rev">
+  <div>
+    <p class="eyebrow reveal">Для работы</p>
+    <h2 class="reveal">Кто что обещал и к какому сроку</h2>
+    <p class="sub reveal">Планёрки, звонки с клиентами, интервью. Мари достаёт договорённости и не даёт им потеряться.</p>
+    <div class="list">
+      <div class="li reveal"><span class="ic" style="color:var(--cyan)"><svg><use href="#i-check"/></svg></span><div><h4>Задачи со сроками</h4><p>Что сделать, кто отвечает и до когда. Задачи, которые поручили именно вам, Мари узнаёт по имени.</p></div></div>
+      <div class="li reveal"><span class="ic" style="color:var(--accentText)"><svg><use href="#i-users"/></svg></span><div><h4>Решения и открытые вопросы</h4><p>Что договорились сделать и что ещё нужно обсудить — без перечитывания всей расшифровки.</p></div></div>
+      <div class="li reveal"><span class="ic" style="color:var(--green)"><svg><use href="#i-phone"/></svg></span><div><h4>Звонки и созвоны</h4><p>Импортируйте запись телефонного разговора или видео встречи из Zoom, Телемоста, Teams.</p></div></div>
+      <div class="li reveal"><span class="ic" style="color:var(--blue)"><svg><use href="#i-chat"/></svg></span><div><h4>Спросите Мари</h4><p>«Что мы решили по бюджету в сентябре?» — Мари ответит по всем вашим записям.</p></div></div>
+    </div>
+  </div>
+  <div class="media reveal" aria-label="Пример чата с Мари">
+    <div class="mc chat">
+      <div class="k">Спросить Мари · все записи</div>
+      <div class="bub me">Какие задачи на мне после планёрки?</div>
+      <div class="bub mari">Три задачи:<br>• подготовить сборку к пятнице;<br>• отправить договор юристу — до среды;<br>• созвониться с Олегом по тарифам.</div>
+      <div class="bub me">А что решили по запуску?</div>
+      <div class="bub mari">Запускаем бету 15 октября, оплату выносим в отдельный модуль. Обсуждали на 12:40.</div>
+    </div>
   </div>
 </div></section>
 
 <section><div class="wrap">
-  <h2>Для кого</h2>
-  <p class="sub">Для всех, кто много говорит и не хочет ничего упустить.</p>
-  <div class="uses"><span>Рабочие встречи и планёрки</span><span>Звонки с клиентами</span><span>Лекции в университете</span><span>Уроки и репетиторство</span><span>Интервью</span><span>Онлайн-созвоны в Zoom и Телемосте</span><span>Голосовые заметки</span></div>
-</div></section>
-
-<section id="windows"><div class="wrap"><div class="band">
-  <h2>СамМари для Windows</h2>
-  <p class="sub" style="margin:0 auto 24px">Записывает звук компьютера и микрофон — работает с Zoom, Телемостом, Teams, Контур.Толком и любыми звонками. Скоро.</p>
-  <a class="btn ghost" href="mailto:info@sum-mary.ru?subject=Хочу%20СамМари%20для%20Windows">Сообщить о выходе</a>
-</div></div></section>
-
-<section id="price"><div class="wrap">
-  <h2>Тарифы</h2>
-  <p class="sub">Начните бесплатно, переходите на Pro, когда понадобится больше.</p>
-  <div class="price">
-    <div class="card"><h3>Бесплатно</h3><div class="big">0 ₽</div>
-      <ul><li>30 минут записи в месяц</li><li>Расшифровка по спикерам</li><li>Резюме и задачи</li><li>Вопросы Мари</li></ul></div>
-    <div class="card pro"><h3>Pro</h3><div class="big">490 ₽ <small style="font-size:16px;color:var(--muted)">в месяц</small></div>
-      <ul><li>50 часов записи в месяц</li><li>Все возможности бесплатного тарифа</li><li>Программа для Windows</li><li>На год — 3 490 ₽ (≈ 290 ₽ в месяц)</li><li>Оплата через RuStore, отмена в любой момент</li></ul></div>
+  <p class="eyebrow reveal">И ещё</p>
+  <h2 class="reveal">Мари берёт на себя всё остальное</h2>
+  <div class="grid" style="margin-top:44px">
+    <div class="card reveal"><div class="ic" style="color:var(--accentText)"><svg><use href="#i-shelf"/></svg></div><h3>Полки по предметам и проектам</h3><p>Мари сама предложит, куда положить запись. Вопросы и тесты — по всей полке сразу.</p></div>
+    <div class="card reveal"><div class="ic" style="color:var(--yellow)"><svg><use href="#i-bell"/></svg></div><h3>Умные напоминания</h3><p>Контрольные, встречи, дедлайны, утренняя сводка. Вы выбираете, что и во сколько присылать.</p></div>
+    <div class="card reveal"><div class="ic" style="color:var(--cyan)"><svg><use href="#i-abc"/></svg></div><h3>Словарь терминов</h3><p>Названия, фамилии, термины — Мари будет писать их без ошибок.</p></div>
+    <div class="card reveal"><div class="ic" style="color:var(--green)"><svg><use href="#i-users"/></svg></div><h3>Спикеры по именам</h3><p>Назовите участников один раз — имена появятся в расшифровке и задачах.</p></div>
+    <div class="card reveal"><div class="ic" style="color:var(--red)"><svg><use href="#i-video"/></svg></div><h3>Любые файлы</h3><p>MP3, M4A, WAV, OGG, голосовые из мессенджеров и видео MP4 — звук Мари достанет сама.</p></div>
+    <div class="card reveal"><div class="ic" style="color:var(--blue)"><svg><use href="#i-pdf"/></svg></div><h3>Поделиться за секунду</h3><p>Отправьте итог или расшифровку в мессенджер, распечатайте PDF.</p></div>
   </div>
 </div></section>
 
-<section id="faq"><div class="wrap" style="max-width:820px">
-  <h2>Вопросы</h2>
-  <details><summary>Насколько хорошо Мари понимает русский?</summary><p>Мы используем одну из лучших моделей распознавания русской речи. Она ставит пунктуацию, понимает разговорную речь и сленг. Названия и термины можно добавить в словарь.</p></details>
-  <details><summary>Где хранятся мои записи?</summary><p>Аудио хранится только на вашем телефоне. На сервер оно загружается для обработки и удаляется сразу после неё. Расшифровки и резюме хранятся на серверах в России.</p></details>
-  <details><summary>Как записывать телефонные звонки?</summary><p>Включите запись разговоров в приложении «Телефон» на Android, а затем импортируйте запись в СамМари — Мари сделает расшифровку и резюме. Не забывайте предупреждать собеседника о записи.</p></details>
-  <details><summary>Сколько ждать результата?</summary><p>Обычно несколько минут на час записи. Приложение пришлёт результат, даже если вы его закрыли.</p></details>
+<section><div class="wrap">
+  <p class="eyebrow reveal">Приватность</p>
+  <h2 class="reveal">Ваши разговоры остаются вашими</h2>
+  <div class="trust" style="margin-top:44px">
+    <div class="card reveal"><div class="ic" style="color:var(--green)"><svg><use href="#i-trash"/></svg></div><h3>Аудио не хранится на сервере</h3><p>Запись загружается только для обработки и удаляется сразу после неё. Оригинал остаётся на вашем телефоне.</p></div>
+    <div class="card reveal"><div class="ic" style="color:var(--blue)"><svg><use href="#i-ru"/></svg></div><h3>Серверы в России</h3><p>Расшифровки и итоги хранятся в российском дата-центре.</p></div>
+    <div class="card reveal"><div class="ic" style="color:var(--accentText)"><svg><use href="#i-lock"/></svg></div><h3>Только у вас</h3><p>Записи видны только в вашем аккаунте. Удалили запись — удалились и её задачи.</p></div>
+  </div>
+</div></section>
+
+<section id="price"><div class="wrap">
+  <p class="eyebrow reveal">Тарифы</p>
+  <h2 class="reveal">Начните бесплатно</h2>
+  <p class="sub reveal">Переходите на Pro, когда записей станет больше. Оплата и отмена — в RuStore.</p>
+  <div class="price">
+    <div class="plan reveal"><h3>Бесплатно</h3><div class="big">0 ₽</div><div class="alt">навсегда</div>
+      <ul><li>30 минут записи в месяц</li><li>Расшифровка по спикерам</li><li>Итог, задачи и даты</li><li>Тест, карточки, PDF-конспект</li><li>Вопросы Мари</li></ul>
+      <a class="btn ghost" href="https://www.rustore.ru/catalog/app/ru.summary.app" rel="noopener">Начать бесплатно</a></div>
+    <div class="plan pro reveal"><h3>Pro</h3><div class="big">490 ₽ <small>в месяц</small></div><div class="alt">или 3 490 ₽ в год — это ≈ 290 ₽ в месяц</div>
+      <ul><li>50 часов записи в месяц</li><li>Всё из бесплатного тарифа</li><li>Длинные лекции и встречи — до нескольких часов</li><li>Отмена в любой момент</li></ul>
+      <a class="btn violet" href="https://www.rustore.ru/catalog/app/ru.summary.app" rel="noopener">Попробовать Pro</a></div>
+  </div>
+</div></section>
+
+<section id="faq"><div class="wrap faq">
+  <p class="eyebrow reveal">Вопросы</p>
+  <h2 class="reveal" style="margin-bottom:28px">Частые вопросы</h2>
+  <details><summary>Насколько хорошо Мари понимает русский?</summary><p>Мари использует одну из лучших моделей распознавания русской речи: она расставляет пунктуацию и понимает разговорную речь. Названия и термины можно добавить в словарь. Английские слова внутри русской речи распознаются частично, полностью английская речь пока не поддерживается.</p></details>
+  <details><summary>Сколько ждать результата?</summary><p>Короткая запись готова за минуту-две, час записи — обычно за несколько минут. Приложение можно свернуть — Мари сообщит, когда итог будет готов.</p></details>
+  <details><summary>Как записывать телефонные звонки?</summary><p>Включите запись разговоров в приложении «Телефон» на Android, затем на главной нажмите «Звонок» и выберите файл. Не забывайте предупреждать собеседника о записи.</p></details>
+  <details><summary>Можно ли записать урок или лекцию на 1,5 часа?</summary><p>Да. Длинные записи загружаются по частям и не теряются, если пропал интернет: загрузка продолжится с того же места.</p></details>
+  <details><summary>Где хранятся мои записи?</summary><p>Аудио остаётся на вашем телефоне. На сервер оно загружается только для обработки и сразу удаляется. Расшифровки и итоги хранятся на серверах в России и видны только вам.</p></details>
   <details><summary>Почему в Pro 50 часов, а не безлимит?</summary><p>50 часов — это больше двух часов записи каждый рабочий день. Ограничение защищает сервис от злоупотреблений и позволяет держать цену ниже, чем у аналогов.</p></details>
   <details><summary>Как отменить подписку?</summary><p>В приложении RuStore → Профиль → Подписки. Подписка действует до конца оплаченного периода.</p></details>
+  <details><summary>Как связаться с поддержкой?</summary><p>В приложении: Профиль → «Написать в поддержку» — ответ придёт туда же и на почту. Или напишите на <a href="mailto:info@sum-mary.ru">info@sum-mary.ru</a>.</p></details>
 </div></section>
+
+<section style="padding-top:24px"><div class="wrap"><div class="band reveal">
+  <span class="orb"></span>
+  <h2>Нажмите на шар — Мари начнёт слушать</h2>
+  <p class="sub">30 минут в месяц бесплатно. Без привязки карты.</p>
+  <div class="cta"><a class="btn primary" href="https://www.rustore.ru/catalog/app/ru.summary.app" rel="noopener"><svg class="rs"><use href="#i-dl"/></svg>Скачать в RuStore</a></div>
+  <p class="soon">Скоро: <b>программа для Windows</b> — запись звука компьютера в Zoom, Телемосте и любых созвонах.</p>
+</div></div></section>
 </main>
 
 <footer><div class="wrap">
@@ -158,7 +441,128 @@ footer .sp{margin-left:auto}
   <a href="/privacy">Политика конфиденциальности</a>
   <a href="/terms">Пользовательское соглашение</a>
   <a class="sp" href="mailto:info@sum-mary.ru">info@sum-mary.ru</a>
-  <span style="flex-basis:100%;font-size:13px">ИП Абдрашитов Эдуард Альбертович · ИНН 502983483207 · ОГРНИП 321508100069910</span>
+  <span class="legal">ИП Абдрашитов Эдуард Альбертович · ИНН 502983483207 · ОГРНИП 321508100069910</span>
 </div></footer>
+
+<script>
+(function () {
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // волны
+  function bars(el, n, slow) {
+    if (!el) return;
+    for (var i = 0; i < n; i++) {
+      var b = document.createElement('i');
+      b.style.animationDelay = (-(i * 97) % 1100) + 'ms';
+      if (slow) { b.style.height = (25 + (i * 37) % 70) + '%'; b.style.animationDuration = (1.1 + (i % 4) * .15) + 's'; }
+      el.appendChild(b);
+    }
+  }
+  bars(document.querySelector('.rec .wave'), 18);
+  bars(document.getElementById('vizW'), 26, true);
+
+  // примеры итогов
+  var DATA = {
+    study: {
+      chip: 'Алгебра · урок', marks: ['★ Важно', '? Не понял'],
+      tag: 'Урок', color: '#6EA8FF', meta: 'Алгебра · 42 мин', title: 'Интегралы: замена переменной',
+      body:
+        '<div class="pt def"><b>Замена переменной</b> — подставляем t = g(x), чтобы свести интеграл к табличному.</div>' +
+        '<div class="pt box">∫ f(g(x))·g′(x) dx = ∫ f(t) dt</div>' +
+        '<div class="pt imp">★ «Такой пример будет на контрольной»</div>' +
+        '<div class="pt err">Частая ошибка: забыть заменить dx на dt</div>' +
+        '<div class="pt ev"><div>Контрольная — чт, 10:00<small>Добавить в календарь?</small></div><em>Да</em></div>',
+      actions: ['PDF-конспект', 'Пройти тест']
+    },
+    work: {
+      chip: 'Планёрка · встреча', marks: ['★ Важно'],
+      tag: 'Встреча', color: '#6FE0B0', meta: '4 участника · 38 мин', title: 'Запуск беты в RuStore',
+      body:
+        '<div class="pt">Решили запускать бету 15 октября, оплату выносим в отдельный модуль.</div>' +
+        '<div class="pt task"><span>Подготовить сборку<small>Вам · до пятницы</small></span></div>' +
+        '<div class="pt task"><span>Отправить договор юристу<small>Сергей · до среды</small></span></div>' +
+        '<div class="pt task"><span>Согласовать тексты лендинга<small>Олег</small></span></div>' +
+        '<div class="pt ev"><div>Созвон с партнёрами — пн, 11:00<small>Добавить в календарь?</small></div><em>Да</em></div>',
+      actions: ['Поделиться', 'Спросить Мари']
+    }
+  };
+
+  var kind = 'study', step = 0, timer = null, clock = null;
+  var scenes = document.querySelectorAll('.scene');
+  var dots = document.querySelectorAll('.dots i');
+  var res = document.getElementById('resScene');
+
+  function fill() {
+    var d = DATA[kind];
+    document.getElementById('recChip').textContent = d.chip;
+    document.getElementById('recMarks').innerHTML = d.marks.map(function (m, i) {
+      return '<span class="' + (i === 0 ? 'hot' : '') + '">' + m + '</span>';
+    }).join('');
+    res.innerHTML =
+      '<div class="head"><span class="tag" style="background:' + d.color + '">' + d.tag + '</span><span class="meta">' + d.meta + '</span></div>' +
+      '<h5>' + d.title + '</h5>' +
+      '<div class="tabs"><span>Итог</span><span>Текст</span><span>Задачи</span></div>' + d.body +
+      '<div class="actions">' + d.actions.map(function (a) { return '<span>' + a + '</span>'; }).join('') + '</div>';
+    res.querySelectorAll('.pt').forEach(function (p, i) { p.style.transitionDelay = (150 + i * 220) + 'ms'; });
+  }
+
+  function show(s) {
+    step = s;
+    scenes.forEach(function (el) { el.classList.toggle('on', +el.dataset.s === s); });
+    dots.forEach(function (el, i) { el.classList.toggle('on', i === s); });
+    clearInterval(clock);
+    if (s === 0) {
+      var sec = 24 * 60 + 7, t = document.getElementById('recTime');
+      var tick = function () { t.textContent = String(Math.floor(sec / 60)).padStart(2, '0') + ':' + String(sec % 60).padStart(2, '0'); sec++; };
+      tick(); clock = setInterval(tick, 1000);
+    }
+    if (s === 1) {
+      var st = document.querySelectorAll('.step');
+      st.forEach(function (e) { e.className = 'step'; });
+      [0, 1, 2].forEach(function (k) {
+        setTimeout(function () {
+          if (step !== 1) return;
+          if (k > 0) st[k - 1].className = 'step done';
+          st[k].className = 'step now';
+        }, k * 900);
+      });
+    }
+  }
+
+  var DUR = [3600, 3200, 6500];
+  function loop() {
+    clearTimeout(timer);
+    timer = setTimeout(function () { show((step + 1) % 3); loop(); }, DUR[step]);
+  }
+
+  document.querySelectorAll('.switch button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.switch button').forEach(function (x) { x.setAttribute('aria-selected', x === b ? 'true' : 'false'); });
+      kind = b.dataset.kind; fill();
+      if (reduce) return show(2);
+      show(0); loop();
+    });
+  });
+
+  fill();
+  if (reduce) { show(2); } else { show(0); loop(); }
+
+  // появление блоков при прокрутке
+  var els = document.querySelectorAll('.reveal');
+  if ('IntersectionObserver' in window && !reduce) {
+    var io = new IntersectionObserver(function (en) {
+      en.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+    }, { rootMargin: '0px 0px -8% 0px' });
+    els.forEach(function (el, i) { el.style.transitionDelay = ((i % 3) * 80) + 'ms'; io.observe(el); });
+  } else {
+    els.forEach(function (el) { el.classList.add('in'); });
+  }
+
+  // граница у шапки после прокрутки
+  var hdr = document.querySelector('header');
+  var onScroll = function () { hdr.classList.toggle('scrolled', window.scrollY > 8); };
+  window.addEventListener('scroll', onScroll, { passive: true }); onScroll();
+})();
+</script>
 </body>
 </html>

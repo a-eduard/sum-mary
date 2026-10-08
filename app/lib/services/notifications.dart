@@ -94,6 +94,12 @@ class Notifications {
         const NotificationDetails(android: _channelReady), payload: r.id);
   }
 
+  /// Ответ поддержки (приходит, пока приложение запущено; иначе — письмо на почту).
+  static Future<void> supportReply(String text) async {
+    if (!_ready) return;
+    await _p.show(7001, 'Ответ поддержки', text, const NotificationDetails(android: _channelReady), payload: 'support');
+  }
+
   static List<EventItem> _lastEvents = [];
   static List<TaskItem> _lastTasks = [];
 

@@ -24,6 +24,7 @@ import 'prepare_screen.dart';
 import 'record_screen.dart';
 import 'recording_screen.dart';
 import 'settings_screen.dart';
+import 'support_screen.dart';
 import 'tasks_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -59,8 +60,32 @@ class _HomeScreenState extends State<HomeScreen> {
       _tasks = t;
       _reschedule();
     });
+    // Ответы поддержки: всплывашка в приложении или уведомление, если оно свёрнуто.
+    _supportSub = Repo.support().listen((list) {
+      final unread = list.where((m) => !m.fromMe && m.readAt == null).toList();
+      final fresh = unread.where((m) => !_supportSeen.contains(m.id)).toList();
+      final first = _supportSeen.isEmpty && !_supportLoaded;
+      _supportLoaded = true;
+      _supportSeen.addAll(list.map((m) => m.id));
+      if (fresh.isEmpty || first) return;
+      final text = fresh.last.text;
+      if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Ответ поддержки: $text', maxLines: 2, overflow: TextOverflow.ellipsis),
+          action: SnackBarAction(label: 'Открыть', onPressed: _openSupport),
+        ));
+      } else {
+        Notifications.supportReply(text);
+      }
+    });
     _loadEvents();
   }
+
+  StreamSubscription<List<SupportMsg>>? _supportSub;
+  final _supportSeen = <String>{};
+  bool _supportLoaded = false;
+
+  void _openSupport() => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportScreen()));
 
   Future<void> _loadEvents() async {
     try {
@@ -89,11 +114,13 @@ class _HomeScreenState extends State<HomeScreen> {
     final id = Notifications.openRecording.value;
     if (id == null || !mounted) return;
     Notifications.openRecording.value = null;
+    if (id == 'support') return _openSupport();
     Navigator.push(context, MaterialPageRoute(builder: (_) => RecordingScreen(recordingId: id)));
   }
 
   @override
   void dispose() {
+    _supportSub?.cancel();
     _recSub?.cancel();
     _taskSub?.cancel();
     Notifications.openRecording.removeListener(_openFromNotification);

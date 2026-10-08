@@ -216,3 +216,18 @@ String fmtDuration(int? sec) {
 }
 
 String fmtMs(int ms) => fmtDuration(ms ~/ 1000);
+
+/// Сообщение в поддержку ('in' — от пользователя) или ответ поддержки ('out').
+class SupportMsg {
+  final String id;
+  final bool fromMe;
+  final String text;
+  final DateTime createdAt;
+  final DateTime? readAt;
+  SupportMsg.fromMap(Map<String, dynamic> m)
+      : id = m['id'],
+        fromMe = m['direction'] == 'in',
+        text = '${m['text'] ?? ''}',
+        createdAt = DateTime.parse(m['created_at']).toLocal(),
+        readAt = m['read_at'] == null ? null : DateTime.parse(m['read_at']).toLocal();
+}

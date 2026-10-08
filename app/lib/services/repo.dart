@@ -195,6 +195,21 @@ class Repo {
     return p;
   }
 
+  // ---------- поддержка ----------
+  static Stream<List<SupportMsg>> support() => _live(() => sb
+      .from('support_messages')
+      .stream(primaryKey: ['id'])
+      .eq('user_id', uid)
+      .order('created_at', ascending: true)
+      .map((rows) => rows.map(SupportMsg.fromMap).toList()));
+
+  static Future<void> markSupportRead() => sb
+      .from('support_messages')
+      .update({'read_at': DateTime.now().toUtc().toIso8601String()})
+      .eq('user_id', uid)
+      .eq('direction', 'out')
+      .isFilter('read_at', null);
+
   static Future<List<Map<String, dynamic>>> vocabulary() async =>
       await sb.from('vocabulary').select().order('created_at');
   static Future<void> addTerm(String term) => sb.from('vocabulary').insert({'term': term.trim()});

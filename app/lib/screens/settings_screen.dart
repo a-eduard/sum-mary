@@ -10,6 +10,7 @@ import '../theme.dart';
 import 'notifications_screen.dart';
 import 'onboarding_screen.dart';
 import 'paywall_screen.dart';
+import 'support_screen.dart';
 import 'vocabulary_screen.dart';
 
 /// Профиль: кто я, тариф, настройки, о приложении.
@@ -236,8 +237,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         'Предупреждайте собеседника о записи разговора.'),
                   ),
                 )),
-            _Item(Icons.mail_outline_rounded, 'Написать в поддержку', 'info@sum-mary.ru',
-                () => launchUrl(Uri.parse('mailto:info@sum-mary.ru?subject=СамМари'))),
+            _Item(Icons.support_agent_rounded, 'Написать в поддержку', 'Ответим здесь и на почту',
+                () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportScreen()))),
             _Item(Icons.privacy_tip_outlined, 'Политика конфиденциальности', null, () => launchUrl(Uri.parse(AppConfig.privacyUrl))),
             _Item(Icons.description_outlined, 'Пользовательское соглашение', null, () => launchUrl(Uri.parse(AppConfig.termsUrl))),
           ]),
